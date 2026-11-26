@@ -1,0 +1,503 @@
+{% extends "base.html" %}
+
+{% block title %}系统设置 - 设备库存管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-cog text-primary"></i> 系统设置
+    </h1>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-building text-primary"></i> 公司管理
+                </h5>
+                <button type="button" class="btn btn-primary btn-sm" onclick="showAddCompanyModal()">
+                    <i class="fas fa-plus"></i> 添加公司
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>公司代码</th>
+                                <th>公司名称</th>
+                                <th>描述</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="companiesList">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加/编辑公司模态框 -->
+<div class="modal fade" id="companyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="companyModalTitle">添加公司</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="companyForm">
+                    <input type="hidden" id="companyId">
+                    <div class="mb-3">
+                        <label for="companyCode" class="form-label">公司代码 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="companyCode" required placeholder="例如：HQ, BJ01">
+                    </div>
+                    <div class="mb-3">
+                        <label for="companyName" class="form-label">公司名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="companyName" required placeholder="例如：总公司">
+                    </div>
+                    <div class="mb-3">
+                        <label for="companyDescription" class="form-label">描述</label>
+                        <textarea class="form-control" id="companyDescription" rows="3" placeholder="公司描述（可选）"></textarea>
+                    </div>
+                    <hr>
+                    <div class="mb-2 text-muted small"><i class="fas fa-link"></i> ITS 工单系统配置（可选）</div>
+                    <div class="mb-3">
+                        <label for="itsUrl" class="form-label">ITS 系统地址</label>
+                        <input type="text" class="form-control" id="itsUrl" placeholder="https://its.lawson.lcmservice.com">
+                    </div>
+                    <div class="mb-3">
+                        <label for="itsAccount" class="form-label">ITS 账号</label>
+                        <input type="text" class="form-control" id="itsAccount" placeholder="ls7240">
+                    </div>
+                    <div class="mb-3">
+                        <label for="itsPassword" class="form-label">ITS 密码</label>
+                        <input type="password" class="form-control" id="itsPassword" placeholder="留空表示不修改">
+                        <div class="form-text">密码已加密存储；编辑时以 ****** 回显，如需修改请清空后重新输入，留空或保持 ****** 则维持原密码不变。</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveCompany()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-globe text-primary"></i> 区域设置
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="settingsForm">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="timezone" class="form-label">时区 *</label>
+                            <select class="form-select" id="timezone" name="timezone" required>
+                                <option value="Asia/Shanghai" {% if settings.timezone == 'Asia/Shanghai' %}selected{% endif %}>亚洲/上海</option>
+                                <option value="Asia/Tokyo" {% if settings.timezone == 'Asia/Tokyo' %}selected{% endif %}>亚洲/东京</option>
+                                <option value="Asia/Seoul" {% if settings.timezone == 'Asia/Seoul' %}selected{% endif %}>亚洲/首尔</option>
+                                <option value="Asia/Singapore" {% if settings.timezone == 'Asia/Singapore' %}selected{% endif %}>亚洲/新加坡</option>
+                                <option value="Asia/Bangkok" {% if settings.timezone == 'Asia/Bangkok' %}selected{% endif %}>亚洲/曼谷</option>
+                                <option value="Asia/Dubai" {% if settings.timezone == 'Asia/Dubai' %}selected{% endif %}>亚洲/迪拜</option>
+                                <option value="Europe/London" {% if settings.timezone == 'Europe/London' %}selected{% endif %}>欧洲/伦敦</option>
+                                <option value="Europe/Paris" {% if settings.timezone == 'Europe/Paris' %}selected{% endif %}>欧洲/巴黎</option>
+                                <option value="Europe/Berlin" {% if settings.timezone == 'Europe/Berlin' %}selected{% endif %}>欧洲/柏林</option>
+                                <option value="Europe/Moscow" {% if settings.timezone == 'Europe/Moscow' %}selected{% endif %}>欧洲/莫斯科</option>
+                                <option value="America/New_York" {% if settings.timezone == 'America/New_York' %}selected{% endif %}>美洲/纽约</option>
+                                <option value="America/Chicago" {% if settings.timezone == 'America/Chicago' %}selected{% endif %}>美洲/芝加哥</option>
+                                <option value="America/Los_Angeles" {% if settings.timezone == 'America/Los_Angeles' %}selected{% endif %}>美洲/洛杉矶</option>
+                                <option value="America/Toronto" {% if settings.timezone == 'America/Toronto' %}selected{% endif %}>美洲/多伦多</option>
+                                <option value="America/Vancouver" {% if settings.timezone == 'America/Vancouver' %}selected{% endif %}>美洲/温哥华</option>
+                                <option value="Australia/Sydney" {% if settings.timezone == 'Australia/Sydney' %}selected{% endif %}>澳洲/悉尼</option>
+                                <option value="Australia/Melbourne" {% if settings.timezone == 'Australia/Melbourne' %}selected{% endif %}>澳洲/墨尔本</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label for="language" class="form-label">语言 *</label>
+                            <select class="form-select" id="language" name="language" required>
+                                <option value="zh-CN" {% if settings.language == 'zh-CN' %}selected{% endif %}>中文 (简体)</option>
+                                <option value="en-US" {% if settings.language == 'en-US' %}selected{% endif %}>English (US)</option>
+                                <option value="ja-JP" {% if settings.language == 'ja-JP' %}selected{% endif %}>日本語</option>
+                                <option value="ko-KR" {% if settings.language == 'ko-KR' %}selected{% endif %}>한국어</option>
+                                <option value="fr-FR" {% if settings.language == 'fr-FR' %}selected{% endif %}>Français</option>
+                                <option value="de-DE" {% if settings.language == 'de-DE' %}selected{% endif %}>Deutsch</option>
+                                <option value="ru-RU" {% if settings.language == 'ru-RU' %}selected{% endif %}>Русский</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="button" class="btn btn-primary" onclick="saveSettings()">
+                            <i class="fas fa-save"></i> 保存设置
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cogs text-primary"></i> 基础数据管理
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="{{ url_for('warehouse_locations') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-warehouse text-primary"></i> 仓库位置管理
+                    </a>
+                    <a href="{{ url_for('stores') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-store text-primary"></i> 店号店名管理
+                    </a>
+                    <a href="{{ url_for('purposes') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-tags text-primary"></i> 出入库用途管理
+                    </a>
+                    <a href="{{ url_for('operators') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-users text-primary"></i> 操作人员管理
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-upload text-primary"></i> 批量导入
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>使用批量导入功能可以快速导入大量数据，支持设备分类、设备型号、设备单元和店号店名的导入。</p>
+                <a href="{{ url_for('batch_import') }}" class="btn btn-primary">
+                    <i class="fas fa-file-import"></i> 进入批量导入页面
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-database"></i> 数据备份
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>创建系统完整备份，一键下载包含：</p>
+                <ul>
+                    <li>MySQL 数据库（设备信息、出入库记录、用户权限等）</li>
+                    <li>快递单识别数据库（SQLite）</li>
+                </ul>
+                <hr>
+                <div class="d-flex align-items-center">
+                    <button type="button" class="btn btn-primary" onclick="downloadBackup()" id="backupBtn">
+                        <i class="fas fa-download"></i> 立即备份并下载
+                    </button>
+                    <span id="backupLoading" class="ms-3" style="display:none;">
+                        <i class="fas fa-spinner fa-spin"></i> 正在创建备份，请稍候...
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> 数据重置
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-warning"></i> <strong>警告：</strong>数据重置操作不可恢复，请谨慎操作！
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">选择重置类型：</label>
+                    <select class="form-select" id="resetType">
+                        <option value="inventory">仅清空库存和出入库记录</option>
+                        <option value="models">清空设备型号和分类</option>
+                        <option value="all">清空所有数据</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="confirmReset">
+                        <label class="form-check-label text-danger" for="confirmReset">
+                            <strong>我已了解风险，确认执行重置</strong>
+                        </label>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-danger" onclick="resetData()">
+                    <i class="fas fa-trash"></i> 执行重置
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let companies = [];
+let editingCompanyId = null;
+
+$(document).ready(function() {
+    loadCompanies();
+});
+
+function loadCompanies() {
+    $.get('/api/companies', function(response) {
+        if (Array.isArray(response)) {
+            companies = response;
+            renderCompanies();
+        }
+    });
+}
+
+function renderCompanies() {
+    const tbody = $('#companiesList');
+    tbody.empty();
+    
+    if (companies.length === 0) {
+        tbody.append('<tr><td colspan="5" class="text-center text-muted">暂无公司数据</td></tr>');
+        return;
+    }
+    
+    companies.forEach(company => {
+        const isCurrentCompany = company.id == {{ session.company_id or 0 }};
+        const tr = `
+            <tr>
+                <td>${company.company_code}</td>
+                <td>${company.company_name} ${isCurrentCompany ? '<span class="badge bg-success">当前</span>' : ''}</td>
+                <td>${company.description || '-'}</td>
+                <td><span class="badge bg-${company.is_active ? 'success' : 'secondary'}">${company.is_active ? '启用' : '禁用'}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="showEditCompanyModal(${company.id})">
+                        <i class="fas fa-edit"></i> 编辑
+                    </button>
+                    ${company.company_code !== 'HQ' ? `
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCompany(${company.id}, '${company.company_name}')">
+                        <i class="fas fa-trash"></i> 删除
+                    </button>
+                    ` : '<span class="badge bg-info">系统默认</span>'}
+                </td>
+            </tr>
+        `;
+        tbody.append(tr);
+    });
+}
+
+function showAddCompanyModal() {
+    editingCompanyId = null;
+    $('#companyModalTitle').text('添加公司');
+    $('#companyForm')[0].reset();
+    $('#companyId').val('');
+    $('#companyCode').prop('readonly', false);
+    const modal = new bootstrap.Modal(document.getElementById('companyModal'));
+    modal.show();
+}
+
+function showEditCompanyModal(companyId) {
+    const company = companies.find(c => c.id === companyId);
+    if (!company) return;
+    
+    editingCompanyId = companyId;
+    $('#companyModalTitle').text('编辑公司');
+    $('#companyId').val(company.id);
+    $('#companyCode').val(company.company_code).prop('readonly', false);
+    $('#companyName').val(company.company_name);
+    $('#companyDescription').val(company.description || '');
+    $('#itsUrl').val(company.its_url || '');
+    $('#itsAccount').val(company.its_account || '');
+    $('#itsPassword').val(company.its_password || '');
+    
+    const modal = new bootstrap.Modal(document.getElementById('companyModal'));
+    modal.show();
+}
+
+function saveCompany() {
+    const companyCode = $('#companyCode').val().trim();
+    const companyName = $('#companyName').val().trim();
+    const description = $('#companyDescription').val().trim();
+    
+    if (!companyCode || !companyName) {
+        alert('公司代码和名称不能为空');
+        return;
+    }
+    
+    const data = {
+        company_code: companyCode,
+        company_name: companyName,
+        description: description,
+        its_url: $('#itsUrl').val().trim(),
+        its_account: $('#itsAccount').val().trim(),
+        its_password: $('#itsPassword').val().trim()
+    };
+    
+    let url, method;
+    if (editingCompanyId) {
+        url = `/api/companies/${editingCompanyId}`;
+        method = 'PUT';
+    } else {
+        url = '/api/companies';
+        method = 'POST';
+    }
+    
+    $.ajax({
+        url: url,
+        type: method,
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                alert(response.message);
+                bootstrap.Modal.getInstance(document.getElementById('companyModal')).hide();
+                loadCompanies();
+            } else {
+                alert(response.message);
+            }
+        },
+        error: function(xhr) {
+            alert('操作失败，请重试');
+        }
+    });
+}
+
+function deleteCompany(companyId, companyName) {
+    if (!confirm(`确定要删除公司 "${companyName}" 吗？\n\n注意：如果该公司下有用户，将无法删除。`)) {
+        return;
+    }
+    
+    $.ajax({
+        url: `/api/companies/${companyId}`,
+        type: 'DELETE',
+        success: function(response) {
+            if (response.success) {
+                alert(response.message);
+                loadCompanies();
+            } else {
+                alert(response.message);
+            }
+        },
+        error: function(xhr) {
+            alert('删除失败，请重试');
+        }
+    });
+}
+
+function saveSettings() {
+    const formData = {
+        timezone: $('#timezone').val(),
+        language: $('#language').val()
+    };
+
+    $.ajax({
+        url: '/api/settings',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            if (response.success) {
+                showAlert('设置保存成功', 'success');
+            } else {
+                showAlert('设置保存失败: ' + response.message, 'danger');
+            }
+        },
+        error: function(xhr, status, error) {
+            showAlert('保存设置时发生错误: ' + error, 'danger');
+        }
+    });
+}
+
+function resetData() {
+    const resetType = document.getElementById('resetType').value;
+    const confirmReset = document.getElementById('confirmReset').checked;
+    
+    if (!confirmReset) {
+        showAlert('请先确认重置操作', 'warning');
+        return;
+    }
+    
+    const typeNames = {
+        'inventory': '库存和出入库记录',
+        'models': '设备型号和分类',
+        'all': '所有数据'
+    };
+    
+    if (!confirm('确定要清空' + typeNames[resetType] + '吗？此操作不可恢复！')) {
+        return;
+    }
+    
+    fetch('/api/reset_data', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            reset_type: resetType,
+            confirm: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            document.getElementById('confirmReset').checked = false;
+        } else {
+            showAlert('重置失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('重置失败: ' + error, 'danger');
+    });
+}
+
+function downloadBackup() {
+    $('#backupBtn').prop('disabled', true);
+    $('#backupLoading').show();
+    fetch('/api/backup/download')
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => { throw new Error(data.message || '备份失败'); });
+            }
+            const disposition = response.headers.get('Content-Disposition');
+            const filename = disposition ? disposition.split('filename=')[1] : 'backup_' + new Date().toISOString().slice(0,19).replace(/[:-]/g, '') + '.zip';
+            return response.blob().then(blob => ({ blob, filename }));
+        })
+        .then(({ blob, filename }) => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showAlert('备份下载成功', 'success');
+        })
+        .catch(error => {
+            showAlert('备份失败: ' + error.message, 'danger');
+        })
+        .finally(() => {
+            $('#backupBtn').prop('disabled', false);
+            $('#backupLoading').hide();
+        });
+}
+</script>
+{% endblock %}

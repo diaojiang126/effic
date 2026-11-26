@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}设备分类管理 - 设备库存管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-tags text-primary"></i> 设备分类管理
+    </h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+        <i class="fas fa-plus"></i> 添加分类
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list"></i> 分类列表
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>分类名称</th>
+                        <th>描述</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="categoriesTable">
+                    {% for category in categories %}
+                    <tr id="category-{{ category.id }}">
+                        <td>{{ category.id }}</td>
+                        <td>{{ category.category_name }}</td>
+                        <td>{{ category.description or '-' }}</td>
+                        <td>{{ category.created_at.strftime('%Y-%m-%d %H:%M') if category.created_at else '-' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory({{ category.id }}, '{{ category.category_name }}')">
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 添加分类模态框 -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加设备分类</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addCategoryForm">
+                    <div class="mb-3">
+                        <label for="categoryName" class="form-label">分类名称 *</label>
+                        <input type="text" class="form-control" id="categoryName" name="category_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="categoryDescription" class="form-label">描述</label>
+                        <textarea class="form-control" id="categoryDescription" name="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="addCategory()">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addCategory() {
+    const formData = {
+        category_name: $('#categoryName').val().trim(),
+        description: $('#categoryDescription').val().trim()
+    };
+
+    if (!formData.category_name) {
+        alert('分类名称不能为空');
+        return;
+    }
+
+    $.ajax({
+        url: '/api/categories',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            if (response.success) {
+                $('#addCategoryModal').modal('hide');
+                $('#addCategoryForm')[0].reset();
+                loadCategories();
+                showAlert('添加分类成功', 'success');
+            } else {
+                showAlert(response.message || response.error || '添加分类失败', 'error');
+            }
+        },
+        error: function() {
+            showAlert('网络错误，请重试', 'error');
+        }
+    });
+}
+
+function deleteCategory(categoryId, categoryName) {
+    if (!confirm(`确定要删除分类 "${categoryName}" 吗？此操作不可恢复！`)) {
+        return;
+    }
+
+    $.ajax({
+        url: `/api/categories?id=${categoryId}`,
+        type: 'DELETE',
+        success: function(response) {
+            if (response.success) {
+                $(`#category-${categoryId}`).remove();
+                showAlert('删除分类成功', 'success');
+            } else {
+                showAlert(response.message, 'error');
+            }
+        },
+        error: function() {
+            showAlert('网络错误，请重试', 'error');
+        }
+    });
+}
+
+function loadCategories() {
+    $.ajax({
+        url: '/api/categories',
+        type: 'GET',
+        success: function(response) {
+            // 接口可能返回数组，也可能返回 {success, categories} 结构，两种都兼容
+            const list = Array.isArray(response) ? response : ((response && response.categories) || []);
+            const tbody = $('#categoriesTable');
+            tbody.empty();
+
+            list.forEach(category => {
+                const row = `
+                    <tr id="category-${category.id}">
+                        <td>${category.id}</td>
+                        <td>${category.category_name}</td>
+                        <td>${category.description || '-'}</td>
+                        <td>${category.created_at ? (typeof category.created_at === 'string' ? category.created_at.slice(0, 19).replace('T', ' ') : new Date(category.created_at).toISOString().slice(0, 19).replace('T', ' ')) : '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory(${category.id}, '${category.category_name}')">
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tbody.append(row);
+            });
+        }
+    });
+}
+
+function showAlert(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 'alert-success';
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    $('.content').prepend(alertHtml);
+    
+    setTimeout(() => {
+        $('.alert').alert('close');
+    }, 3000);
+}
+
+$(document).ready(function() {
+    // 模态框关闭时重置表单
+    $('#addCategoryModal').on('hidden.bs.modal', function() {
+        $('#addCategoryForm')[0].reset();
+    });
+});
+</script>
+{% endblock %}

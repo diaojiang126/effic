@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>识别运行监控</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .container { max-width: 1000px; }
+        .card { border: none; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
+        .num { font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+            <h4 class="text-white mb-2 mb-md-0"><i class="fas fa-chart-line me-2"></i>识别运行监控</h4>
+            <div class="d-flex align-items-center">
+                <span class="text-white me-3" id="uptime"></span>
+                <a href="/" class="btn btn-light btn-sm">返回</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-4">
+                <p class="text-muted small mb-3">
+                    进程内滚动统计（各阶段最近 500 次采样），服务重启后清零；每 10 秒自动刷新。
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="text-nowrap">阶段</th>
+                                <th class="text-nowrap">调用次数</th>
+                                <th class="text-nowrap">失败数</th>
+                                <th class="text-nowrap">失败率</th>
+                                <th class="text-nowrap">P50</th>
+                                <th class="text-nowrap">P95</th>
+                                <th class="text-nowrap">最大</th>
+                            </tr>
+                        </thead>
+                        <tbody id="metricsRows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STAGE_NAMES = {
+            recognize: '整体识别',
+            preprocess: '图像预处理',
+            ocr: 'OCR 调用',
+            parse: '字段解析'
+        };
+
+        function render(data) {
+            const rows = document.getElementById('metricsRows');
+            const stages = data.stages || {};
+            const keys = Object.keys(stages);
+            if (keys.length === 0) {
+                rows.innerHTML = '<tr><td colspan="7" class="text-center text-muted">暂无数据</td></tr>';
+                return;
+            }
+            rows.innerHTML = keys.map(function (key) {
+                const s = stages[key];
+                const rate = (s.failure_rate * 100).toFixed(1);
+                let rateClass = 'text-success';
+                if (s.failure_rate > 0.1) {
+                    rateClass = 'text-danger fw-bold';
+                } else if (s.failure_rate > 0) {
+                    rateClass = 'text-warning';
+                }
+                return '<tr>' +
+                    '<td>' + (STAGE_NAMES[key] || key) + '</td>' +
+                    '<td class="num">' + s.count + '</td>' +
+                    '<td class="num">' + s.failures + '</td>' +
+                    '<td class="num ' + rateClass + '">' + rate + '%</td>' +
+                    '<td class="num">' + s.p50_ms + ' ms</td>' +
+                    '<td class="num">' + s.p95_ms + ' ms</td>' +
+                    '<td class="num">' + s.max_ms + ' ms</td>' +
+                    '</tr>';
+            }).join('');
+
+            const seconds = data.uptime_seconds || 0;
+            document.getElementById('uptime').textContent =
+                '运行 ' + Math.floor(seconds / 3600) + 'h ' + Math.floor((seconds % 3600) / 60) + 'm';
+        }
+
+        function load() {
+            fetch('/api/metrics')
+                .then(function (res) { return res.json(); })
+                .then(function (data) { if (data.success) { render(data.data); } })
+                .catch(function () {});
+        }
+
+        load();
+        setInterval(load, 10000);
+    </script>
+</body>
+</html>

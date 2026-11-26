@@ -1,0 +1,17 @@
+Flask==2.3.3
+pymysql==1.1.0
+cryptography>=42.0.0
+werkzeug==2.3.7
+pandas==2.2.3
+openpyxl==3.1.2
+reportlab==4.2.2
+flask_jwt_extended==4.5.3
+python-dotenv==1.0.0
+requests==2.31.0
+baidu-aip==4.16.13
+chardet
+pytesseract==0.3.10
+Pillow>=9.0.0
+opencv-python-headless>=4.5.0
+numpy>=1.20.0
+gunicorn==21.2.0

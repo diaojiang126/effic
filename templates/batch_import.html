@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}批量导入{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">批量导入</h1>
+    
+    <!-- 成功或错误消息 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            导入数据
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                <div class="mb-4">
+                    <label for="import_type" class="form-label">导入类型</label>
+                    <select class="form-select" id="import_type" name="import_type" required>
+                        <option value="">请选择导入类型</option>
+                        <option value="categories">设备分类</option>
+                        <option value="models">设备型号</option>
+                        <option value="units">设备单元</option>
+                    </select>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="file" class="form-label">选择文件</label>
+                    <input type="file" class="form-control" id="file" name="file" accept=".xlsx" required>
+                    <div class="form-text mt-1">支持 .xlsx 格式的Excel文件</div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 py-2">开始导入</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            下载导入模板
+        </div>
+        <div class="card-body">
+            <p class="mb-3">点击以下链接下载相应的导入模板：</p>
+            <div class="list-group">
+                <a href="{{ url_for('download_template', template_type='categories') }}" class="list-group-item list-group-item-action py-3">
+                    <i class="fas fa-download me-2"></i> 设备分类导入模板
+                </a>
+                <a href="{{ url_for('download_template', template_type='models') }}" class="list-group-item list-group-item-action py-3">
+                    <i class="fas fa-download me-2"></i> 设备型号导入模板
+                </a>
+                <a href="{{ url_for('download_template', template_type='units') }}" class="list-group-item list-group-item-action py-3">
+                    <i class="fas fa-download me-2"></i> 设备单元导入模板
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            导入说明
+        </div>
+        <div class="card-body">
+            <ul class="list-unstyled">
+                <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> 请严格按照模板格式填写数据</li>
+                <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> 带 * 的字段为必填项</li>
+                <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> 导入时会自动跳过重复数据</li>
+                <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> 设备分类导入时，如果分类已存在，会自动跳过</li>
+                <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> 设备型号导入时，如果分类不存在，会自动创建</li>
+                <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> 设备单元导入时，如果型号不存在，会自动跳过</li>
+            </ul>
+        </div>
+    </div>
+{% endblock %}

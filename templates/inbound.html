@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+
+{% block title %}入库管理 - 设备库存管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-arrow-down text-success"></i> 入库管理
+    </h1>
+    <div>
+        <button class="btn btn-outline-primary" onclick="refreshInbound()">
+            <i class="fas fa-sync-alt"></i> 刷新
+        </button>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-plus-circle"></i> 添加入库记录
+        </h5>
+    </div>
+    <div class="card-body">
+        <form id="inboundForm">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="modelSearch" class="form-label">设备型号</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="modelSearch" placeholder="输入关键字搜索或点击下拉" autocomplete="off" required>
+                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="fas fa-caret-down"></i>
+                            </button>
+                            <div id="modelDropdown" class="dropdown-menu dropdown-menu-end" style="width: 400px; max-height: 300px; overflow-y: auto;">
+                            </div>
+                        </div>
+                        <input type="hidden" id="modelSelect" value="">
+                        <div id="modelSearchResults" class="dropdown-menu" style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="mb-3">
+                        <label for="quantityInput" class="form-label">入库数量</label>
+                        <input type="number" class="form-control" id="quantityInput" min="1" value="1" required>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="serialNumberSearch" class="form-label">序列号</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="serialNumberSearch" placeholder="输入关键字搜索" autocomplete="off">
+                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="fas fa-caret-down"></i>
+                            </button>
+                            <div id="serialDropdown" class="dropdown-menu dropdown-menu-end" style="width: 400px; max-height: 300px; overflow-y: auto;">
+                            </div>
+                        </div>
+                        <input type="hidden" id="serialNumberInput" value="">
+                        <div id="serialSearchResults" class="dropdown-menu" style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="unitCodeSearch" class="form-label">资产编号</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="unitCodeSearch" placeholder="输入关键字搜索" autocomplete="off">
+                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="fas fa-caret-down"></i>
+                            </button>
+                            <div id="unitCodeDropdown" class="dropdown-menu dropdown-menu-end" style="width: 400px; max-height: 300px; overflow-y: auto;">
+                            </div>
+                        </div>
+                        <input type="hidden" id="unitCodeInput" value="">
+                        <div id="unitCodeSearchResults" class="dropdown-menu" style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="purposeSelect" class="form-label">入库用途</label>
+                        <select class="form-select" id="purposeSelect" required>
+                            <option value="">请选择用途</option>
+                            {% for purpose in purposes %}
+                            <option value="{{ purpose.id }}">{{ purpose.purpose_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="warehouseLocationSearch" class="form-label">仓库位置</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="warehouseLocationSearch" placeholder="输入关键字搜索" autocomplete="off">
+                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="fas fa-caret-down"></i>
+                            </button>
+                            <div id="warehouseDropdown" class="dropdown-menu dropdown-menu-end" style="width: 300px; max-height: 300px; overflow-y: auto;">
+                            </div>
+                        </div>
+                        <input type="hidden" id="warehouseLocationSelect" value="">
+                        <div id="warehouseLocationSearchResults" class="dropdown-menu" style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="inboundDateTime" class="form-label">入库时间</label>
+                        <input type="datetime-local" class="form-control" id="inboundDateTime" required>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="notesInput" class="form-label">备注</label>
+                        <input type="text" class="form-control" id="notesInput">
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> 提交入库
+                </button>
+                <a href="{{ url_for('batch_inbound') }}" class="btn btn-outline-success">
+                    <i class="fas fa-boxes"></i> 批量入库
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-list"></i> 入库记录列表
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>记录时间</th>
+                        <th>设备型号</th>
+                        <th>序列号</th>
+                        <th>资产编号</th>
+                        <th>入库数量</th>
+                        <th>仓库位置</th>
+                        <th>入库用途</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody id="inboundTableBody">
+                    {% for record in records %}
+                    <tr>
+                        <td>{{ record.formatted_created_at if record.formatted_created_at else '' }}</td>
+                        <td>{{ record.category_name }} - {{ record.model_name }} ({{ record.model_code }}){% if record.description %} - {{ record.description }}{% endif %}</td>
+                        <td>{{ record.serial_number or '' }}</td>
+                        <td>{{ record.unit_code or '' }}</td>
+                        <td><span class="badge bg-success">{{ record.quantity }}</span></td>
+                        <td>{{ record.warehouse_location_name or '' }}</td>
+                        <td>{{ record.purpose_name }}</td>
+                        <td>{{ record.notes or '' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var searchTimeout = null;
+
+function setupSearchWithDropdown(searchInputId, searchResultsId, dropdownId, apiEndpoint, displayField, valueField, hiddenInputId, extraFields) {
+    var searchInput = document.getElementById(searchInputId);
+    var searchResults = document.getElementById(searchResultsId);
+    var dropdown = document.getElementById(dropdownId);
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        var keyword = this.value.trim();
+        
+        if (keyword.length < 1) {
+            searchResults.style.display = 'none';
+            return;
+        }
+        
+        searchTimeout = setTimeout(function() {
+            fetch(apiEndpoint + '?keyword=' + encodeURIComponent(keyword))
+                .then(response => response.json())
+                .then(data => {
+                    var items = null;
+                    if (Array.isArray(data)) {
+                        items = data;
+                    } else if (data.success) {
+                        items = data.models || data.stores || data.locations || data.units || [];
+                    }
+                    if (items) {
+                        var html = '';
+                        
+                        items.forEach(function(item) {
+                            var displayText = getDisplayText(item, displayField);
+                            html += '<a class="dropdown-item" href="#" data-value="' + item[valueField] + '" data-display="' + escapeHtml(displayText) + '"';
+                            if (extraFields) {
+                                extraFields.forEach(function(field) {
+                                    if (item[field] !== undefined) {
+                                        html += ' data-' + field + '="' + escapeHtml(String(item[field] || '')) + '"';
+                                    }
+                                });
+                            }
+                            var descHtml = item.description ? '<br><small class="text-muted">' + escapeHtml(item.description) + '</small>' : '';
+                            html += '>' + displayText + descHtml + '</a>';
+                        });
+                        
+                        if (items.length === 0) {
+                            html = '<span class="dropdown-item text-muted">无匹配结果</span>';
+                        }
+                        
+                        searchResults.innerHTML = html;
+                        searchResults.style.display = 'block';
+                        
+                        searchResults.querySelectorAll('.dropdown-item').forEach(function(el) {
+                            el.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                searchInput.value = this.getAttribute('data-display');
+                                document.getElementById(hiddenInputId).value = this.getAttribute('data-value');
+                                searchResults.style.display = 'none';
+                            });
+                        });
+                    }
+                });
+        }, 300);
+    });
+    
+    searchInput.addEventListener('blur', function() {
+        setTimeout(function() {
+            searchResults.style.display = 'none';
+        }, 200);
+    });
+    
+    searchInput.addEventListener('focus', function() {
+        if (this.value.length >= 1) {
+            searchResults.style.display = 'block';
+        }
+    });
+}
+
+function setupUnitDropdown(dropdownId, searchInputId, hiddenInputId) {
+    var dropdown = document.getElementById(dropdownId);
+    var searchInput = document.getElementById(searchInputId);
+    
+    dropdown.querySelectorAll('.dropdown-item').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            e.preventDefault();
+            searchInput.value = this.getAttribute('data-display');
+            document.getElementById(hiddenInputId).value = this.getAttribute('data-value');
+        });
+    });
+}
+
+function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function getDisplayText(item, displayField) {
+    if (item.category_name) {
+        return item.category_name + ' - ' + item.model_name + ' (' + item.model_code + ')';
+    }
+    if (item.store_code) {
+        return item.store_code + ' - ' + item.store_name;
+    }
+    if (item.unit_code) {
+        return (item.serial_number || '') + ' / ' + item.unit_code;
+    }
+    return item[displayField] || '';
+}
+
+function loadDropdownData() {
+    Promise.all([
+        fetch('/api/models').then(r => r.json()),
+        fetch('/api/search/units?keyword=').then(r => r.json()),
+        fetch('/api/warehouse_locations').then(r => r.json())
+    ])
+    .then(([modelsData, unitsData, warehouseData]) => {
+        var modelDropdown = document.getElementById('modelDropdown');
+        modelDropdown.innerHTML = '';
+        if (Array.isArray(modelsData) && modelsData.length > 0) {
+            modelsData.forEach(function(model) {
+                var item = document.createElement('a');
+                item.className = 'dropdown-item';
+                item.href = '#';
+                var displayText = model.category_name + ' - ' + model.model_name + ' (' + model.model_code + ')';
+                item.setAttribute('data-value', model.id);
+                item.setAttribute('data-display', displayText);
+                var descHtml = model.description ? '<br><small class="text-muted">' + escapeHtml(model.description) + '</small>' : '';
+                item.innerHTML = displayText + descHtml;
+                modelDropdown.appendChild(item);
+            });
+        }
+        setupUnitDropdown('modelDropdown', 'modelSearch', 'modelSelect');
+        
+        var serialDropdown = document.getElementById('serialDropdown');
+        serialDropdown.innerHTML = '';
+        if (Array.isArray(unitsData) && unitsData.length > 0) {
+            unitsData.forEach(function(unit) {
+                var item = document.createElement('a');
+                item.className = 'dropdown-item';
+                item.href = '#';
+                item.setAttribute('data-value', unit.serial_number || unit.unit_code);
+                item.setAttribute('data-display', (unit.serial_number || '') + ' / ' + unit.unit_code);
+                item.setAttribute('data-unit-code', unit.unit_code);
+                item.textContent = (unit.serial_number || '(无)') + ' - ' + unit.unit_code + ' - ' + unit.model_name;
+                serialDropdown.appendChild(item);
+            });
+        }
+        setupUnitDropdown('serialDropdown', 'serialNumberSearch', 'serialNumberInput');
+        
+        var unitCodeDropdown = document.getElementById('unitCodeDropdown');
+        unitCodeDropdown.innerHTML = '';
+        if (Array.isArray(unitsData) && unitsData.length > 0) {
+            unitsData.forEach(function(unit) {
+                var item = document.createElement('a');
+                item.className = 'dropdown-item';
+                item.href = '#';
+                item.setAttribute('data-value', unit.unit_code);
+                item.setAttribute('data-display', unit.unit_code);
+                item.setAttribute('data-serial-number', unit.serial_number || '');
+                item.textContent = unit.unit_code + ' - ' + (unit.serial_number || '(无)') + ' - ' + unit.model_name;
+                unitCodeDropdown.appendChild(item);
+            });
+        }
+        setupUnitDropdown('unitCodeDropdown', 'unitCodeSearch', 'unitCodeInput');
+        
+        var warehouseDropdown = document.getElementById('warehouseDropdown');
+        warehouseDropdown.innerHTML = '';
+        if (Array.isArray(warehouseData) && warehouseData.length > 0) {
+            warehouseData.forEach(function(loc) {
+                var item = document.createElement('a');
+                item.className = 'dropdown-item';
+                item.href = '#';
+                item.setAttribute('data-value', loc.id);
+                item.setAttribute('data-display', loc.location_name);
+                item.textContent = loc.location_name + (loc.location_code ? ' (' + loc.location_code + ')' : '');
+                warehouseDropdown.appendChild(item);
+            });
+        }
+        setupUnitDropdown('warehouseDropdown', 'warehouseLocationSearch', 'warehouseLocationSelect');
+    });
+}
+
+function refreshInbound() {
+    fetch('/api/inbound')
+        .then(response => response.json())
+        .then(records => {
+            if (Array.isArray(records)) {
+                const tbody = document.getElementById('inboundTableBody');
+                tbody.innerHTML = '';
+                
+                records.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${record.formatted_created_at || ''}</td>
+                        <td>${record.category_name} - ${record.model_name} (${record.model_code})${record.description ? ' - ' + record.description : ''}</td>
+                        <td>${record.serial_number || ''}</td>
+                        <td>${record.unit_code || ''}</td>
+                        <td><span class="badge bg-success">${record.quantity}</span></td>
+                        <td>${record.warehouse_location_name || ''}</td>
+                        <td>${record.purpose_name}</td>
+                        <td>${record.notes || ''}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+            
+            showAlert('数据已刷新', 'success');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('刷新失败', 'danger');
+        });
+}
+
+document.getElementById('inboundForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    var modelId = document.getElementById('modelSelect').value;
+    if (!modelId) {
+        showAlert('请选择设备型号', 'warning');
+        return;
+    }
+    
+    var serialNumber = document.getElementById('serialNumberInput').value.trim();
+    var unitCode = document.getElementById('unitCodeInput').value.trim();
+    
+    if (!serialNumber) {
+        serialNumber = document.getElementById('serialNumberSearch').value.trim();
+    }
+    if (!unitCode) {
+        unitCode = document.getElementById('unitCodeSearch').value.trim();
+    }
+    
+    const formData = {
+        model_id: parseInt(modelId),
+        quantity: parseInt(document.getElementById('quantityInput').value),
+        serial_number: serialNumber,
+        unit_code: unitCode,
+        purpose_id: parseInt(document.getElementById('purposeSelect').value),
+        warehouse_location_id: document.getElementById('warehouseLocationSelect').value ? parseInt(document.getElementById('warehouseLocationSelect').value) : null,
+        inbound_date: document.getElementById('inboundDateTime').value,
+        notes: document.getElementById('notesInput').value
+    };
+    
+    fetch('/api/inbound', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('入库记录添加成功', 'success');
+            document.getElementById('inboundForm').reset();
+            document.getElementById('modelSelect').value = '';
+            document.getElementById('serialNumberInput').value = '';
+            document.getElementById('unitCodeInput').value = '';
+            document.getElementById('warehouseLocationSelect').value = '';
+            refreshInbound();
+        } else {
+            showAlert('入库失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('入库失败', 'danger');
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    document.getElementById('inboundDateTime').value = now.toISOString().slice(0, 16);
+    
+    setupSearchWithDropdown('modelSearch', 'modelSearchResults', 'modelDropdown', '/api/search/models', 'model_name', 'id', 'modelSelect', ['available_quantity']);
+    setupSearchWithDropdown('serialNumberSearch', 'serialSearchResults', 'serialDropdown', '/api/search/units', 'serial_number', 'serial_number', 'serialNumberInput', ['unit_code', 'model_name']);
+    setupSearchWithDropdown('unitCodeSearch', 'unitCodeSearchResults', 'unitCodeDropdown', '/api/search/units', 'unit_code', 'unit_code', 'unitCodeInput', ['serial_number', 'model_name']);
+    setupSearchWithDropdown('warehouseLocationSearch', 'warehouseLocationSearchResults', 'warehouseDropdown', '/api/search/warehouse_locations', 'location_name', 'id', 'warehouseLocationSelect', null);
+    
+    loadDropdownData();
+    refreshInbound();
+});
+</script>
+{% endblock %}

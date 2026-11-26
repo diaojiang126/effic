@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}库存管理 - 设备库存管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-boxes text-primary"></i> 库存管理
+    </h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addInventoryModal">
+        <i class="fas fa-plus"></i> 添加库存
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list"></i> 库存列表
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>分类</th>
+                        <th>型号名称</th>
+                        <th>型号代码</th>
+                        <th>总数量</th>
+                        <th>可用数量</th>
+                        <th>上次入库时间</th>
+                        <th>上次出库时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTable">
+                    {% for item in inventory %}
+                    <tr id="inventory-{{ item.id }}">
+                        <td>{{ item.id }}</td>
+                        <td>{{ item.category_name }}</td>
+                        <td>{{ item.model_name }}{% if item.description %} - {{ item.description }}{% endif %}</td>
+                        <td>{{ item.model_code }}</td>
+                        <td>{{ item.total_quantity }}</td>
+                        <td>{{ item.available_quantity }}</td>
+                        <td>{{ item.last_inbound_date or '-' }}</td>
+                        <td>{{ item.last_outbound_date or '-' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-2" onclick="editInventory({{ item.id }})">
+                                <i class="fas fa-edit"></i> 编辑
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteInventory({{ item.id }}, '{{ item.model_name }}')">
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 添加库存模态框 -->
+<div class="modal fade" id="addInventoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加库存记录</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addInventoryForm">
+                    <div class="mb-3">
+                        <label for="addModelId" class="form-label">设备型号 *</label>
+                        <select class="form-control" id="addModelId" name="model_id" required>
+                            <option value="">请选择设备型号</option>
+                            {% for model in models %}
+                            <option value="{{ model.id }}">{{ model.category_name }} - {{ model.model_name }} ({{ model.model_code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addTotalQuantity" class="form-label">总数量 *</label>
+                        <input type="number" class="form-control" id="addTotalQuantity" name="total_quantity" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addAvailableQuantity" class="form-label">可用数量 *</label>
+                        <input type="number" class="form-control" id="addAvailableQuantity" name="available_quantity" min="0" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="addInventory()">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑库存模态框 -->
+<div class="modal fade" id="editInventoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑库存记录</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editInventoryForm">
+                    <input type="hidden" id="editInventoryId" name="id">
+                    <div class="mb-3">
+                        <label for="editModelId" class="form-label">设备型号</label>
+                        <select class="form-control" id="editModelId" name="model_id" disabled>
+                            <option value="">请选择设备型号</option>
+                            {% for model in models %}
+                            <option value="{{ model.id }}">{{ model.category_name }} - {{ model.model_name }} ({{ model.model_code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTotalQuantity" class="form-label">总数量 *</label>
+                        <input type="number" class="form-control" id="editTotalQuantity" name="total_quantity" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editAvailableQuantity" class="form-label">可用数量 *</label>
+                        <input type="number" class="form-control" id="editAvailableQuantity" name="available_quantity" min="0" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="updateInventory()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addInventory() {
+    const formData = {
+        model_id: $('#addModelId').val(),
+        total_quantity: $('#addTotalQuantity').val(),
+        available_quantity: $('#addAvailableQuantity').val()
+    };
+
+    if (!formData.model_id) {
+        alert('请选择设备型号');
+        return;
+    }
+    if (formData.total_quantity === '' || formData.total_quantity < 0) {
+        alert('总数量必须大于等于0');
+        return;
+    }
+    if (formData.available_quantity === '' || formData.available_quantity < 0) {
+        alert('可用数量必须大于等于0');
+        return;
+    }
+    if (parseInt(formData.available_quantity) > parseInt(formData.total_quantity)) {
+        alert('可用数量不能大于总数量');
+        return;
+    }
+
+    $.ajax({
+        url: '/api/inventory',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            if (response.success) {
+                $('#addInventoryModal').modal('hide');
+                $('#addInventoryForm')[0].reset();
+                loadInventory();
+                showAlert('添加库存成功', 'success');
+            } else {
+                showAlert(response.message, 'error');
+            }
+        },
+        error: function() {
+            showAlert('网络错误，请重试', 'error');
+        }
+    });
+}
+
+function deleteInventory(inventoryId, modelName) {
+    if (!confirm(`确定要删除型号 "${modelName}" 的库存记录吗？此操作不可恢复！`)) {
+        return;
+    }
+
+    $.ajax({
+        url: `/api/inventory?id=${inventoryId}`,
+        type: 'DELETE',
+        success: function(response) {
+            if (response.success) {
+                $(`#inventory-${inventoryId}`).remove();
+                showAlert('删除库存成功', 'success');
+            } else {
+                showAlert(response.message, 'error');
+            }
+        },
+        error: function() {
+            showAlert('网络错误，请重试', 'error');
+        }
+    });
+}
+
+function editInventory(inventoryId) {
+    // 获取库存详情
+    $.ajax({
+        url: `/api/inventory/${inventoryId}`,
+        type: 'GET',
+        success: function(response) {
+            let inventory = null;
+            if (Array.isArray(response)) {
+                inventory = response.find(item => item.id === inventoryId);
+            } else if (response.success) {
+                inventory = response.inventory;
+            }
+            if (inventory) {
+                // 填充表单数据
+                $('#editInventoryId').val(inventory.id);
+                $('#editModelId').val(inventory.model_id);
+                $('#editTotalQuantity').val(inventory.total_quantity);
+                $('#editAvailableQuantity').val(inventory.available_quantity);
+                // 打开模态框
+                $('#editInventoryModal').modal('show');
+            } else {
+                showAlert('获取库存详情失败', 'error');
+            }
+        },
+        error: function() {
+            showAlert('网络错误，请重试', 'error');
+        }
+    });
+}
+
+function updateInventory() {
+    const formData = {
+        id: $('#editInventoryId').val(),
+        total_quantity: $('#editTotalQuantity').val(),
+        available_quantity: $('#editAvailableQuantity').val()
+    };
+
+    if (formData.total_quantity === '' || formData.total_quantity < 0) {
+        alert('总数量必须大于等于0');
+        return;
+    }
+    if (formData.available_quantity === '' || formData.available_quantity < 0) {
+        alert('可用数量必须大于等于0');
+        return;
+    }
+    if (parseInt(formData.available_quantity) > parseInt(formData.total_quantity)) {
+        alert('可用数量不能大于总数量');
+        return;
+    }
+
+    $.ajax({
+        url: '/api/inventory',
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            if (response.success) {
+                $('#editInventoryModal').modal('hide');
+                loadInventory();
+                showAlert('更新库存成功', 'success');
+            } else {
+                showAlert(response.message, 'error');
+            }
+        },
+        error: function() {
+            showAlert('网络错误，请重试', 'error');
+        }
+    });
+}
+
+function loadInventory() {
+    $.ajax({
+        url: '/api/inventory',
+        type: 'GET',
+        success: function(response) {
+            if (Array.isArray(response)) {
+                const tbody = $('#inventoryTable');
+                tbody.empty();
+                
+                response.forEach(item => {
+                    const row = `
+                        <tr id="inventory-${item.id}">
+                            <td>${item.id}</td>
+                            <td>${item.category_name}</td>
+                            <td>${item.model_name}${item.description ? ' - ' + item.description : ''}</td>
+                            <td>${item.model_code}</td>
+                            <td>${item.total_quantity}</td>
+                            <td>${item.available_quantity}</td>
+                            <td>${item.last_inbound_date || '-'}</td>
+                            <td>${item.last_outbound_date || '-'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary me-2" onclick="editInventory(${item.id})">
+                                    <i class="fas fa-edit"></i> 编辑
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteInventory(${item.id}, '${item.model_name}')">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.append(row);
+                });
+            }
+        }
+    });
+}
+
+function showAlert(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 'alert-success';
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    $('.content').prepend(alertHtml);
+    
+    setTimeout(() => {
+        $('.alert').alert('close');
+    }, 3000);
+}
+
+$(document).ready(function() {
+    // 模态框关闭时重置表单
+    $('#addInventoryModal').on('hidden.bs.modal', function() {
+        $('#addInventoryForm')[0].reset();
+    });
+});
+</script>
+{% endblock %}

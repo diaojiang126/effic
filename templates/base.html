@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}设备库存管理系统{% endblock %}</title>
+    <!-- 本地静态资源优先 -->
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/all.min.css') }}" rel="stylesheet">
+    <!-- CDN fallback -->
+    <script>
+        // 检查Bootstrap CSS是否加载成功
+        function checkBootstrapCSS() {
+            return Array.from(document.styleSheets).some(sheet => {
+                try {
+                    return sheet.cssRules && Array.from(sheet.cssRules).some(rule => 
+                        rule.selectorText && rule.selectorText.includes('.container-fluid')
+                    );
+                } catch (e) {
+                    return false;
+                }
+            });
+        }
+        
+        // 如果本地资源加载失败，尝试加载CDN资源
+        if (!checkBootstrapCSS()) {
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css';
+            document.head.appendChild(link);
+        }
+        
+        // 检查Font Awesome是否加载成功
+        if (!document.querySelector('.fa-solid')) {
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
+            document.head.appendChild(link);
+        }
+    </script>
+    <style>
+        /* 基础样式 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        /* 侧边栏样式 */
+        .sidebar {
+            min-height: 100vh;
+            background-color: #343a40;
+            transition: transform 0.3s ease;
+        }
+        
+        /* 响应式侧边栏 */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 250px;
+                z-index: 1050;
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            
+            .sidebar-backdrop {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 1040;
+                display: none;
+            }
+            
+            .sidebar-backdrop.show {
+                display: block;
+            }
+        }
+        
+        .sidebar .nav-link {
+            color: #adb5bd;
+            padding: 0.75rem 1rem;
+        }
+        
+        .sidebar .nav-link:hover {
+            color: #fff;
+            background-color: #495057;
+        }
+        
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #0d6efd;
+        }
+        
+        /* 内容区域样式 */
+        .content {
+            padding: 20px;
+        }
+        
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .content {
+                padding: 10px;
+            }
+            
+            /* 增加按钮和输入框的点击区域 */
+            .btn, .form-control, .form-select {
+                min-height: 44px;
+                font-size: 16px;
+            }
+            
+            /* 优化表格在移动端的显示 */
+            .table-responsive {
+                max-height: 400px;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* 优化卡片在移动端的显示 */
+            .card {
+                margin-bottom: 15px;
+            }
+        }
+        
+        /* 汉堡菜单按钮 */
+        .navbar-toggle {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1051;
+            background-color: #343a40;
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        @media (min-width: 769px) {
+            .navbar-toggle {
+                display: none;
+            }
+        }
+        
+        /* 表格样式优化 */
+        .table {
+            font-size: 14px;
+        }
+        
+        @media (max-width: 576px) {
+            .table {
+                font-size: 12px;
+            }
+            
+            .table th, .table td {
+                padding: 0.5rem;
+            }
+        }
+        
+        /* 优化表单在移动端的显示 */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        /* 优化消息提示的显示 */
+        .alert {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 汉堡菜单按钮 -->
+    <button class="navbar-toggle" id="navbarToggle" type="button">
+        <i class="fas fa-bars"></i>
+    </button>
+    
+    <!-- 侧边栏背景遮罩 -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar" id="sidebar">
+                <div class="position-sticky pt-5">
+                    <h5 class="text-white text-center mb-4">
+                        <i class="fas fa-boxes"></i> 设备库存管理
+                    </h5>
+                    {% if session.company_name %}
+                    <div class="text-white text-center mb-3 px-2">
+                        <small class="text-muted"><i class="fas fa-building"></i> 当前公司</small>
+                        <p class="mb-0 fw-bold">{{ session.company_name }}</p>
+                    </div>
+                    {% endif %}
+                    <!-- 用户信息 -->
+                    {% if session.username %}
+                    <div class="text-white text-center mb-4">
+                        <p class="mb-1"><i class="fas fa-user"></i> {{ session.username }}</p>
+                        <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light mt-2">
+                            <i class="fas fa-sign-out-alt"></i> 登出
+                        </a>
+                    </div>
+                    {% endif %}
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">
+                                <i class="fas fa-home"></i> 首页
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {% if request.endpoint in ['inbound', 'batch_inbound'] %}active{% endif %}" href="#" id="inboundDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-arrow-down"></i> 入库管理
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="inboundDropdown">
+                                <li><a class="dropdown-item {% if request.endpoint == 'inbound' %}active{% endif %}" href="{{ url_for('inbound') }}">
+                                    <i class="fas fa-plus-circle"></i> 普通入库
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'batch_inbound' %}active{% endif %}" href="{{ url_for('batch_inbound') }}">
+                                    <i class="fas fa-boxes"></i> 批量入库
+                                </a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'outbound' %}active{% endif %}" href="{{ url_for('outbound') }}">
+                                <i class="fas fa-arrow-up"></i> 出库管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'inventory' %}active{% endif %}" href="{{ url_for('inventory') }}">
+                                <i class="fas fa-boxes"></i> 库存管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'report' %}active{% endif %}" href="{{ url_for('report') }}">
+                                <i class="fas fa-chart-bar"></i> 报表统计
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'alerts' %}active{% endif %}" href="{{ url_for('alerts') }}">
+                                <i class="fas fa-bell"></i> 告警设置
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'express.index' %}active{% endif %}" href="{{ url_for('express.index') }}">
+                                <i class="fas fa-shipping-fast"></i> 快递单识别
+                            </a>
+                        </li>
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {% if request.endpoint in ['settings', 'categories', 'models', 'purposes', 'users', 'batch_import', 'warehouse_locations', 'stores', 'operators'] %}active{% endif %}" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-cog"></i> 设置
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="settingsDropdown">
+                                <li><a class="dropdown-item {% if request.endpoint == 'categories' %}active{% endif %}" href="{{ url_for('categories') }}">
+                                    <i class="fas fa-tags"></i> 设备分类
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'models' %}active{% endif %}" href="{{ url_for('models') }}">
+                                    <i class="fas fa-cube"></i> 设备型号
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'warehouse_locations' %}active{% endif %}" href="{{ url_for('warehouse_locations') }}">
+                                    <i class="fas fa-warehouse"></i> 仓库位置
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'stores' %}active{% endif %}" href="{{ url_for('stores') }}">
+                                    <i class="fas fa-store"></i> 店号店名
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'purposes' %}active{% endif %}" href="{{ url_for('purposes') }}">
+                                    <i class="fas fa-list"></i> 出入库用途
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'operators' %}active{% endif %}" href="{{ url_for('operators') }}">
+                                    <i class="fas fa-users"></i> 操作人员
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'users' %}active{% endif %}" href="{{ url_for('users') }}">
+                                    <i class="fas fa-user-cog"></i> 用户管理
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'batch_import' %}active{% endif %}" href="{{ url_for('batch_import') }}">
+                                    <i class="fas fa-file-import"></i> 批量导入
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">
+                                    <i class="fas fa-cog"></i> 系统设置
+                                </a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- 主内容区域 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="content">
+                    <!-- 消息提示 -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- 页面内容 -->
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 本地JavaScript资源优先 -->
+    <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <!-- CDN fallback -->
+    <script>
+        // 检查jQuery是否加载成功
+        if (typeof jQuery === 'undefined') {
+            var script = document.createElement('script');
+            script.src = 'https://code.jquery.com/jquery-3.6.0.min.js';
+            document.body.appendChild(script);
+        }
+        // 检查Bootstrap JS是否加载成功
+        if (typeof bootstrap === 'undefined') {
+            var script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js';
+            document.body.appendChild(script);
+        }
+    </script>
+    <script>
+        // 侧边栏交互功能
+        document.addEventListener('DOMContentLoaded', function() {
+            const navbarToggle = document.getElementById('navbarToggle');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+            
+            // 切换侧边栏显示/隐藏
+            function toggleSidebar() {
+                sidebar.classList.toggle('active');
+                sidebarBackdrop.classList.toggle('show');
+            }
+            
+            // 点击汉堡菜单按钮
+            navbarToggle.addEventListener('click', toggleSidebar);
+            
+            // 点击背景遮罩
+            sidebarBackdrop.addEventListener('click', toggleSidebar);
+            
+            // 移动端优化：点击侧边栏链接后自动关闭侧边栏
+            const sidebarLinks = sidebar.querySelectorAll('.nav-link');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    // 检查是否是下拉菜单
+                    if (this.classList.contains('dropdown-toggle')) {
+                        return; // 下拉菜单不关闭侧边栏
+                    }
+                    
+                    // 移动端自动关闭侧边栏
+                    if (window.innerWidth <= 768) {
+                        sidebar.classList.remove('active');
+                        sidebarBackdrop.classList.remove('show');
+                    }
+                });
+            });
+            
+            // 窗口大小变化时的处理
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 768) {
+                    sidebar.classList.remove('active');
+                    sidebarBackdrop.classList.remove('show');
+                }
+            });
+        });
+        
+        // 全局提示函数
+        function showAlert(message, type = 'info') {
+            // 创建提示元素
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show fixed-top end-0 m-3 z-50`;
+            alertDiv.style.maxWidth = '400px';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            // 添加到页面
+            document.body.appendChild(alertDiv);
+            
+            // 3秒后自动关闭
+            setTimeout(() => {
+                const alert = bootstrap.Alert.getInstance(alertDiv);
+                if (alert) {
+                    alert.close();
+                }
+            }, 3000);
+        }
+        
+        // 移动端优化：表单提交时防止键盘遮挡
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                form.addEventListener('submit', function() {
+                    // 滚动到页面顶部，防止键盘遮挡
+                    window.scrollTo(0, 0);
+                });
+            });
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+{% block title %}快递单识别系统{% endblock %}
+
+{% block content %}
+<style>
+    .express-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .express-container .card {
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+        border: 1px solid #e8e8e8;
+    }
+
+    .express-container .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        border-radius: 10px 10px 0 0 !important;
+        padding: 12px 20px;
+    }
+
+    .express-container .card-header i {
+        margin-right: 8px;
+    }
+
+    .upload-zone {
+        border: 2px dashed #ccc;
+        border-radius: 10px;
+        padding: 40px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+
+    .upload-zone:hover {
+        border-color: #667eea;
+        background: #f0f0ff;
+    }
+
+    .upload-zone.dragover {
+        border-color: #667eea;
+        background: #e8e8ff;
+    }
+
+    .upload-zone i {
+        font-size: 48px;
+        color: #667eea;
+        margin-bottom: 15px;
+    }
+
+    .upload-zone p {
+        margin: 0;
+        color: #666;
+        font-size: 14px;
+    }
+
+    .result-card {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+
+    .result-card .info-item {
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .result-card .info-item:last-child {
+        border-bottom: none;
+    }
+
+    .result-card .label {
+        font-weight: 600;
+        color: #555;
+        font-size: 13px;
+    }
+
+    .result-card .value {
+        color: #333;
+        font-size: 14px;
+    }
+
+    .image-preview {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .express-container .table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .express-container .table td {
+        font-size: 13px;
+        vertical-align: middle;
+    }
+
+    .express-container .badge-status {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
+
+    .detail-img {
+        max-width: 100%;
+        max-height: 300px;
+        border-radius: 5px;
+    }
+
+    .batch-nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin: 15px 0;
+    }
+
+    .express-container .search-box {
+        max-width: 300px;
+    }
+
+    @media (max-width: 768px) {
+        .upload-zone {
+            padding: 20px 15px;
+        }
+        .upload-zone i {
+            font-size: 36px;
+        }
+        .express-container .search-box {
+            max-width: 100%;
+        }
+    }
+    /* 导出日期范围 */
+    .export-range-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e8e8e8;
+        font-size: 13px;
+    }
+    .export-range-bar .range-label { color: #555; font-weight: 600; }
+    .export-range-bar .range-date { width: 150px; }
+    .export-range-bar .range-sep { color: #888; }
+    .export-range-bar .range-hint { color: #999; font-size: 12px; }
+    @media (max-width: 768px) {
+        .export-range-bar { padding: 8px 12px; }
+        .export-range-bar .range-date { width: 128px; }
+    }
+</style>
+
+<div class="express-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="fas fa-shipping-fast"></i> 快递单识别系统</h4>
+        <div>
+            <button class="btn btn-outline-primary btn-sm" onclick="loadRecords()" title="刷新">
+                <i class="fas fa-sync"></i> 刷新
+            </button>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> 返回首页
+            </a>
+        </div>
+    </div>
+
+    <!-- 上传区域 -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-upload"></i> 上传识别
+            <span class="float-end">
+                <label class="btn btn-sm btn-light mb-0">
+                    <i class="fas fa-images"></i> 批量上传
+                    <input type="file" id="batchFileInput" accept="image/*" multiple style="display:none">
+                </label>
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="upload-zone" id="uploadZone">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <h5>点击或拖拽图片到此处上传</h5>
+                <p>支持 JPG、PNG、BMP、WEBP 格式</p>
+                <input type="file" id="fileInput" accept="image/*" style="display:none">
+            </div>
+            <div id="uploadLoading" style="display:none;" class="text-center mt-3">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">正在识别...</span>
+                </div>
+                <p class="mt-2 text-muted">正在识别中，请稍候...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 识别结果 -->
+    <div class="card" id="resultCard" style="display:none;">
+        <div class="card-header">
+            <i class="fas fa-file-alt"></i> 识别结果
+            <div class="float-end">
+                <span id="saveHint" class="text-warning small me-2" style="display:none;"></span>
+                <button class="btn btn-sm btn-success me-2" id="saveBtn" onclick="saveResult()">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="cancelEdit()">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div id="resultImageContainer">
+                        <img id="resultImage" class="image-preview" src="" alt="预览图片">
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="result-card" id="resultContent">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="info-item">
+                                    <div class="label"><i class="fas fa-user"></i> 寄件人</div>
+                                    <div class="value"><input type="text" id="resultSender" class="form-control form-control-sm"></div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="label"><i class="fas fa-phone"></i> 寄件人电话</div>
+                                    <div class="value"><input type="text" id="resultSenderPhone" class="form-control form-control-sm"></div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="label"><i class="fas fa-map-marker-alt"></i> 寄件人地址</div>
+                                    <div class="value"><input type="text" id="resultSenderAddr" class="form-control form-control-sm"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-item">
+                                    <div class="label"><i class="fas fa-user"></i> 收件人</div>
+                                    <div class="value"><input type="text" id="resultReceiver" class="form-control form-control-sm"></div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="label"><i class="fas fa-phone"></i> 收件人电话</div>
+                                    <div class="value"><input type="text" id="resultReceiverPhone" class="form-control form-control-sm"></div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="label"><i class="fas fa-map-marker-alt"></i> 收件人地址</div>
+                                    <div class="value"><input type="text" id="resultReceiverAddr" class="form-control form-control-sm"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-4">
+                                <div class="info-item">
+                                    <div class="label"><i class="fas fa-box"></i> 物品名称</div>
+                                    <div class="value"><input type="text" id="resultItemName" class="form-control form-control-sm"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="info-item">
+                                    <div class="label"><i class="fas fa-yen-sign"></i> 金额</div>
+                                    <div class="value"><input type="text" id="resultAmount" class="form-control form-control-sm"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="info-item">
+                                    <div class="label"><i class="fas fa-barcode"></i> 快递单号</div>
+                                    <div class="value"><input type="text" id="resultExpressNo" class="form-control form-control-sm"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <div class="info-item">
+                                    <div class="label"><i class="fas fa-tag"></i> 项目 <span class="text-danger">*</span></div>
+                                    <div class="value">
+                                        <div class="input-group input-group-sm">
+                                            <select id="resultProject" class="form-select">
+                                                <option value="">-- 请选择项目 --</option>
+                                            </select>
+                                            <button class="btn btn-outline-primary" onclick="showAddOption('project', 'result')" title="添加预设值">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-item">
+                                    <div class="label"><i class="fas fa-clipboard-list"></i> 类型 <span class="text-danger">*</span></div>
+                                    <div class="value">
+                                        <div class="input-group input-group-sm">
+                                            <select id="resultType" class="form-select">
+                                                <option value="">-- 请选择类型 --</option>
+                                            </select>
+                                            <button class="btn btn-outline-primary" onclick="showAddOption('record_type', 'result')" title="添加预设值">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量上传结果 -->
+    <div class="card" id="batchResultCard" style="display:none;">
+        <div class="card-header">
+            <i class="fas fa-layer-group"></i> 批量上传结果
+        </div>
+        <div class="card-body">
+            <div class="row text-center mb-3">
+                <div class="col-6">
+                    <h5 class="text-success">
+                        <i class="fas fa-check-circle"></i> 成功：<span id="successCount">0</span>
+                    </h5>
+                </div>
+                <div class="col-6">
+                    <h5 class="text-danger">
+                        <i class="fas fa-times-circle"></i> 失败：<span id="failCount">0</span>
+                    </h5>
+                </div>
+            </div>
+            <div class="batch-nav">
+                <button class="btn btn-outline-primary btn-sm" onclick="batchPrevRecord()">
+                    <i class="fas fa-chevron-left"></i> 上一个
+                </button>
+                <span id="batchIndex">0 / 0</span>
+                <button class="btn btn-outline-primary btn-sm" onclick="batchNextRecord()">
+                    下一个 <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            <div id="batchResultDetail" class="result-card"></div>
+        </div>
+    </div>
+
+    <!-- 记录列表 -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-list"></i> 识别记录
+            <div class="float-end">
+                <div class="d-flex gap-2">
+                    <input type="text" id="searchInput" class="form-control form-control-sm search-box" placeholder="搜索快递单号/寄件人/收件人...">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-light" onclick="exportExcel()" title="导出Excel">
+                            <i class="fas fa-file-excel"></i>
+                        </button>
+                        <button class="btn btn-light" onclick="exportCsv()" title="导出CSV">
+                            <i class="fas fa-file-csv"></i>
+                        </button>
+                        <button class="btn btn-light" onclick="exportImages()" title="导出图片">
+                            <i class="fas fa-images"></i>
+                        </button>
+                    </div>
+                    <button class="btn btn-outline-danger btn-sm" onclick="showDeleteByMonthModal()" title="按月清除历史记录">
+                        <i class="fas fa-calendar-times"></i> 按月清除
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- 导出日期范围：留空表示导出全部 -->
+        <div class="export-range-bar">
+            <span class="range-label"><i class="fas fa-calendar-alt"></i> 导出范围</span>
+            <input type="date" id="exportStartDate" class="form-control form-control-sm range-date">
+            <span class="range-sep">至</span>
+            <input type="date" id="exportEndDate" class="form-control form-control-sm range-date">
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary" type="button" onclick="setExportRange('today')">今天</button>
+                <button class="btn btn-outline-secondary" type="button" onclick="setExportRange('yesterday')">昨天</button>
+                <button class="btn btn-outline-secondary" type="button" onclick="setExportRange('week')">本周</button>
+                <button class="btn btn-outline-secondary" type="button" onclick="setExportRange('lastMonth')">上月</button>
+                <button class="btn btn-outline-secondary" type="button" onclick="clearExportRange()">清空</button>
+            </div>
+            <span class="range-hint">按寄件日期筛选，留空则导出全部</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered table-sm" id="recordsTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>快递单号</th>
+                            <th>寄件人</th>
+                            <th>收件人</th>
+                            <th>项目</th>
+                            <th>类型</th>
+                            <th>金额</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recordsTableBody"></tbody>
+                </table>
+            </div>
+            <div id="noData" class="text-center text-muted py-4" style="display:none;">
+                <i class="fas fa-inbox fa-3x mb-3"></i>
+                <p>暂无数据</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 详情弹窗 -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title"><i class="fas fa-file-alt"></i> 快递单详情</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-5">
+                        <img id="detailImage" class="detail-img w-100" src="" alt="快递单图片">
+                    </div>
+                    <div class="col-md-7">
+                        <div class="result-card" id="detailContent"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑弹窗 -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> 编辑快递单</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editId">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">寄件人</label>
+                        <input type="text" id="editSender" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">寄件人电话</label>
+                        <input type="text" id="editSenderPhone" class="form-control">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">寄件人地址</label>
+                        <input type="text" id="editSenderAddr" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">收件人</label>
+                        <input type="text" id="editReceiver" class="form-control">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">收件人电话</label>
+                        <input type="text" id="editReceiverPhone" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">收件人地址</label>
+                        <input type="text" id="editReceiverAddr" class="form-control">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">物品名称</label>
+                        <input type="text" id="editItemName" class="form-control">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">金额</label>
+                        <input type="text" id="editAmount" class="form-control">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">快递单号</label>
+                        <input type="text" id="editExpressNo" class="form-control">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">项目 <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <select id="editProject" class="form-select">
+                                <option value="">-- 请选择项目 --</option>
+                            </select>
+                            <button class="btn btn-outline-primary" onclick="showAddOption('project', 'edit')" title="添加预设值">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">类型 <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <select id="editType" class="form-select">
+                                <option value="">-- 请选择类型 --</option>
+                            </select>
+                            <button class="btn btn-outline-primary" onclick="showAddOption('record_type', 'edit')" title="添加预设值">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="updateRecord()">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加预设值弹窗 -->
+<div class="modal fade" id="addOptionModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title"><i class="fas fa-plus-circle"></i> 添加预设值</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="addOptionType">
+                <input type="hidden" id="addOptionPrefix">
+                <label class="form-label" id="addOptionLabel">预设值名称</label>
+                <input type="text" id="addOptionValue" class="form-control" placeholder="请输入新的预设值..." autocomplete="off">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="confirmAddOption()">
+                    <i class="fas fa-check"></i> 确定
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 按月清除弹窗 -->
+<div class="modal fade" id="deleteByMonthModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h6 class="modal-title"><i class="fas fa-calendar-times"></i> 按月清除历史记录</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-exclamation-triangle"></i> 此操作将删除指定月份的所有快递单记录及上传图片，不可恢复！
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">选择年份</label>
+                    <select class="form-select" id="deleteYear"></select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">选择月份</label>
+                    <select class="form-select" id="deleteMonth">
+                        <option value="1">1月</option>
+                        <option value="2">2月</option>
+                        <option value="3">3月</option>
+                        <option value="4">4月</option>
+                        <option value="5">5月</option>
+                        <option value="6">6月</option>
+                        <option value="7">7月</option>
+                        <option value="8">8月</option>
+                        <option value="9">9月</option>
+                        <option value="10">10月</option>
+                        <option value="11">11月</option>
+                        <option value="12">12月</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" onclick="deleteByMonth()">
+                    <i class="fas fa-trash"></i> 确认清除
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/express_app.js') }}"></script>
+{% endblock %}

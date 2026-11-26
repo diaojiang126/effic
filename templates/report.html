@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block title %}报表统计 - 设备库存管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-chart-bar text-primary"></i> 报表统计
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <span class="badge bg-primary rounded-pill me-2">{{ start_date }} ~ {{ end_date }}</span>
+    </div>
+</div>
+
+<!-- 查询与导出 -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0"><i class="fas fa-filter"></i> 日期范围查询与导出</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" action="{{ url_for('report') }}" class="row g-3 align-items-end" id="reportFilterForm">
+            <div class="col-12 col-md-3">
+                <label for="startDate" class="form-label">开始日期</label>
+                <input type="date" class="form-control" id="startDate" name="start" value="{{ start_date }}">
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="endDate" class="form-label">结束日期</label>
+                <input type="date" class="form-control" id="endDate" name="end" value="{{ end_date }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label for="recordType" class="form-label">记录类型</label>
+                <select class="form-select" id="recordType" name="type">
+                    <option value="all" {% if record_type == 'all' %}selected{% endif %}>全部</option>
+                    <option value="inbound" {% if record_type == 'inbound' %}selected{% endif %}>仅入库</option>
+                    <option value="outbound" {% if record_type == 'outbound' %}selected{% endif %}>仅出库</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> 查询
+                    </button>
+                    <button type="button" class="btn btn-outline-success" id="exportExcelBtn">
+                        <i class="fas fa-file-excel"></i> 导出Excel
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" id="exportPdfBtn">
+                        <i class="fas fa-file-pdf"></i> 导出PDF
+                    </button>
+                </div>
+            </div>
+        </form>
+        <div class="mt-3 d-flex flex-wrap gap-2">
+            <small class="text-muted align-self-center me-1">快捷范围：</small>
+            <button type="button" class="btn btn-sm btn-outline-secondary quick-range" data-days="0">今日</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary quick-range" data-days="6">近7天</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary quick-range" data-days="29">近30天</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="thisMonthBtn">本月</button>
+        </div>
+    </div>
+</div>
+
+<!-- 汇总 -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-success">
+            <div class="card-body">
+                <div class="text-muted small mb-1"><i class="fas fa-arrow-down text-success"></i> 入库总量</div>
+                <div class="h3 mb-0 text-success">{{ summary.inbound_quantity or 0 }}</div>
+                <div class="small text-muted">{{ summary.inbound_records or 0 }} 笔</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-warning">
+            <div class="card-body">
+                <div class="text-muted small mb-1"><i class="fas fa-arrow-up text-warning"></i> 出库总量</div>
+                <div class="h3 mb-0 text-warning">{{ summary.outbound_quantity or 0 }}</div>
+                <div class="small text-muted">{{ summary.outbound_records or 0 }} 笔</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-primary">
+            <div class="card-body">
+                <div class="text-muted small mb-1"><i class="fas fa-exchange-alt text-primary"></i> 出入库合计</div>
+                <div class="h3 mb-0 text-primary">{{ summary.total_quantity or 0 }}</div>
+                <div class="small text-muted">{{ summary.total_records or 0 }} 笔</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-1"><i class="fas fa-calendar-day"></i> 统计天数</div>
+                <div class="h3 mb-0">{{ summary.daily|length if summary.daily else 0 }}</div>
+                <div class="small text-muted">含无出入库日期</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- 按天汇总 -->
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-calendar-alt"></i> 按天出入库汇总</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>日期</th>
+                                <th class="text-end">入库</th>
+                                <th class="text-end">出库</th>
+                                <th class="text-end">合计</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in summary.daily or [] %}
+                            <tr {% if day.total == 0 %}class="text-muted"{% endif %}>
+                                <td>{{ day.date }}</td>
+                                <td class="text-end text-success">{{ day.inbound }}</td>
+                                <td class="text-end text-warning">{{ day.outbound }}</td>
+                                <td class="text-end fw-bold">{{ day.total }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center text-muted">暂无数据</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 按品类汇总 -->
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-tags"></i> 按品类出入库汇总</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>品类</th>
+                                <th class="text-end">入库</th>
+                                <th class="text-end">出库</th>
+                                <th class="text-end">合计</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in summary.categories or [] %}
+                            <tr>
+                                <td>{{ item.category_name }}</td>
+                                <td class="text-end text-success">{{ item.inbound_quantity }}</td>
+                                <td class="text-end text-warning">{{ item.outbound_quantity }}</td>
+                                <td class="text-end fw-bold">{{ item.total_quantity }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center text-muted">暂无数据</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 出入库明细 -->
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list-alt"></i> 出入库明细
+            <span class="badge bg-secondary ms-1">{{ records|length }} 条</span>
+        </h5>
+        <small class="text-muted">最多展示 500 条，完整数据请导出文件</small>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>类型</th>
+                        <th>日期</th>
+                        <th>品类</th>
+                        <th>型号</th>
+                        <th class="text-end">数量</th>
+                        <th>用途</th>
+                        <th>店号店名</th>
+                        <th>仓库位置</th>
+                        <th>开始使用日期</th>
+                        <th>操作人</th>
+                        <th>工单编号</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-{{ 'success' if record.record_type == '入库' else 'warning' }}">
+                                {{ record.record_type }}
+                            </span>
+                        </td>
+                        <td>{{ record.date }}</td>
+                        <td>{{ record.category_name }}</td>
+                        <td>
+                            {{ record.model_name }}{% if record.model_code %} <span class="text-muted">({{ record.model_code }})</span>{% endif %}
+                        </td>
+                        <td class="text-end fw-bold">{{ record.quantity }}</td>
+                        <td>{{ record.purpose_name or '-' }}</td>
+                        <td>{{ record.store_code or '' }}{% if record.store_code and record.store_name %} - {% endif %}{{ record.store_name or '-' }}</td>
+                        <td>{{ record.warehouse_name or '-' }}</td>
+                        <td>{{ record.start_use_date or '-' }}</td>
+                        <td>{{ record.operator or '-' }}</td>
+                        <td>{{ record.work_order_number or '-' }}</td>
+                        <td>{{ record.notes or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="12" class="text-center text-muted">该时间段内暂无出入库记录</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 全量导出（历史功能保留） -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0"><i class="fas fa-download"></i> 其他导出</h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <a href="{{ url_for('export_inbound') }}" class="btn btn-outline-success w-100">
+                    <i class="fas fa-download"></i> 全部入库记录（CSV）
+                </a>
+            </div>
+            <div class="col-12 col-md-4">
+                <a href="{{ url_for('export_outbound') }}" class="btn btn-outline-danger w-100">
+                    <i class="fas fa-download"></i> 全部出库记录（CSV）
+                </a>
+            </div>
+            <div class="col-12 col-md-4">
+                <a href="{{ url_for('export_inventory') }}" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-download"></i> 全部库存数据（CSV）
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const startInput = document.getElementById('startDate');
+    const endInput = document.getElementById('endDate');
+    const typeSelect = document.getElementById('recordType');
+
+    function formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+
+    // 快捷日期范围
+    document.querySelectorAll('.quick-range').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const days = parseInt(this.dataset.days, 10) || 0;
+            const end = new Date();
+            const start = new Date();
+            start.setDate(end.getDate() - days);
+            startInput.value = formatDate(start);
+            endInput.value = formatDate(end);
+        });
+    });
+
+    document.getElementById('thisMonthBtn').addEventListener('click', function () {
+        const now = new Date();
+        startInput.value = formatDate(new Date(now.getFullYear(), now.getMonth(), 1));
+        endInput.value = formatDate(now);
+    });
+
+    function buildExportUrl(format) {
+        const params = new URLSearchParams({
+            start: startInput.value,
+            end: endInput.value,
+            type: typeSelect.value,
+            format: format
+        });
+        return "{{ url_for('export_records') }}?" + params.toString();
+    }
+
+    // 前置校验：避免无效区间直接打到后端（后端超过 366 天会返回错误 JSON）
+    function validateRange() {
+        if (!startInput.value || !endInput.value) {
+            showAlert('请先选择开始日期和结束日期', 'warning');
+            return false;
+        }
+        const start = new Date(startInput.value + 'T00:00:00');
+        const end = new Date(endInput.value + 'T00:00:00');
+        if (start > end) {
+            showAlert('开始日期不能晚于结束日期', 'warning');
+            return false;
+        }
+        const days = Math.round((end - start) / 86400000) + 1;
+        if (days > 366) {
+            showAlert('导出区间不能超过 366 天（当前 ' + days + ' 天），请缩小日期范围', 'warning');
+            return false;
+        }
+        return true;
+    }
+
+    // 使用 fetch + blob 下载：出错时页面保持原样并弹出提示，不会被错误 JSON 覆盖
+    async function downloadExport(format) {
+        if (!validateRange()) {
+            return;
+        }
+        const url = buildExportUrl(format);
+        try {
+            const response = await fetch(url, { credentials: 'same-origin' });
+            const contentType = response.headers.get('Content-Type') || '';
+            if (!response.ok || contentType.includes('application/json')) {
+                let message = '导出失败，请稍后重试';
+                try {
+                    const data = await response.json();
+                    if (data && data.message) {
+                        message = data.message;
+                    }
+                } catch (ignore) {
+                    // 保持默认提示
+                }
+                showAlert(message, 'danger');
+                return;
+            }
+            const blob = await response.blob();
+            let filename = format === 'pdf' ? '出入库记录.pdf' : '出入库记录.xlsx';
+            const disposition = response.headers.get('Content-Disposition') || '';
+            const matched = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+            if (matched) {
+                filename = decodeURIComponent(matched[1]);
+            }
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+            showAlert('导出完成：' + filename, 'success');
+        } catch (error) {
+            showAlert('导出失败：' + (error && error.message ? error.message : '网络异常'), 'danger');
+        }
+    }
+
+    document.getElementById('exportExcelBtn').addEventListener('click', function () {
+        downloadExport('xlsx');
+    });
+    document.getElementById('exportPdfBtn').addEventListener('click', function () {
+        downloadExport('pdf');
+    });
+
+    // 查询前也做一次区间校验
+    document.getElementById('reportFilterForm').addEventListener('submit', function (event) {
+        if (!validateRange()) {
+            event.preventDefault();
+        }
+    });
+
+    // 类型切换后自动查询，减少一次点击
+    typeSelect.addEventListener('change', function () {
+        document.getElementById('reportFilterForm').submit();
+    });
+})();
+</script>
+{% endblock %}

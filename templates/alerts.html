@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}库存告警设置 - 设备库存管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-exclamation-triangle text-warning"></i> 库存告警设置
+    </h1>
+    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#addAlertModal">
+        <i class="fas fa-plus"></i> 添加告警设置
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list"></i> 告警设置列表
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>分类</th>
+                        <th>型号名称</th>
+                        <th>型号代码</th>
+                        <th>告警阈值</th>
+                        <th>告警消息</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="alertsTable">
+                    {% for alert in alerts %}
+                    <tr id="alert-{{ alert.id }}">
+                        <td>{{ alert.id }}</td>
+                        <td>{{ alert.category_name }}</td>
+                        <td>{{ alert.model_name }}</td>
+                        <td>{{ alert.model_code }}</td>
+                        <td>{{ alert.threshold }}</td>
+                        <td>{{ alert.alert_message }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if alert.is_active else 'danger' }}">
+                                {{ '启用' if alert.is_active else '禁用' }}
+                            </span>
+                        </td>
+                        <td>{{ alert.created_at.strftime('%Y-%m-%d %H:%M') if alert.created_at else '-' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-2" onclick="editAlert({{ alert.id }})">
+                                <i class="fas fa-edit"></i> 编辑
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAlert({{ alert.id }}, '{{ alert.model_name }}')">
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 添加告警模态框 -->
+<div class="modal fade" id="addAlertModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加库存告警设置</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addAlertForm">
+                    <div class="mb-3">
+                        <label for="addModelId" class="form-label">设备型号 *</label>
+                        <select class="form-control" id="addModelId" name="model_id" required>
+                            <option value="">请选择设备型号</option>
+                            {% for model in models %}
+                            <option value="{{ model.id }}">{{ model.category_name }} - {{ model.model_name }} ({{ model.model_code }}){% if model.description %} - {{ model.description }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addThreshold" class="form-label">告警阈值 *</label>
+                        <input type="number" class="form-control" id="addThreshold" name="threshold" min="0" required>
+                        <div class="form-text">当库存数量小于等于此值时，系统会触发告警</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addAlertMessage" class="form-label">告警消息</label>
+                        <input type="text" class="form-control" id="addAlertMessage" name="alert_message" placeholder="库存不足">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="addIsActive" name="is_active" checked>
+                        <label class="form-check-label" for="addIsActive">启用告警</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-warning" onclick="addAlert()">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑告警模态框 -->
+<div class="modal fade" id="editAlertModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑库存告警设置</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editAlertForm">
+                    <input type="hidden" id="editAlertId" name="id">
+                    <div class="mb-3">
+                        <label for="editModelId" class="form-label">设备型号</label>
+                        <select class="form-control" id="editModelId" name="model_id" disabled>
+                            <option value="">请选择设备型号</option>
+                            {% for model in models %}
+                            <option value="{{ model.id }}">{{ model.category_name }} - {{ model.model_name }} ({{ model.model_code }}){% if model.description %} - {{ model.description }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editThreshold" class="form-label">告警阈值 *</label>
+                        <input type="number" class="form-control" id="editThreshold" name="threshold" min="0" required>
+                        <div class="form-text">当库存数量小于等于此值时，系统会触发告警</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editAlertMessage" class="form-label">告警消息</label>
+                        <input type="text" class="form-control" id="editAlertMessage" name="alert_message" placeholder="库存不足">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editIsActive" name="is_active">
+                        <label class="form-check-label" for="editIsActive">启用告警</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="updateAlert()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addAlert() {
+    const formData = {
+        model_id: $('#addModelId').val(),
+        threshold: $('#addThreshold').val(),
+        alert_message: $('#addAlertMessage').val().trim() || '库存不足',
+        is_active: $('#addIsActive').is(':checked')
+    };
+
+    if (!formData.model_id) {
+        alert('请选择设备型号');
+        return;
+    }
+    if (formData.threshold === '' || formData.threshold < 0) {
+        alert('告警阈值必须大于等于0');
+        return;
+    }
+
+    $.ajax({
+        url: '/api/alerts',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            if (response.success) {
+                $('#addAlertModal').modal('hide');
+                $('#addAlertForm')[0].reset();
+                loadAlerts();
+                showAlertMessage('添加告警设置成功', 'success');
+            } else {
+                showAlertMessage(response.message, 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.log('AJAX Error:', status, error);
+            console.log('Response:', xhr.responseText);
+            showAlertMessage(`网络错误: ${status} - ${error}，请查看控制台获取详细信息`, 'error');
+        }
+    });
+}
+
+function deleteAlert(alertId, modelName) {
+    if (!confirm(`确定要删除型号 "${modelName}" 的告警设置吗？此操作不可恢复！`)) {
+        return;
+    }
+
+    $.ajax({
+        url: `/api/alerts?id=${alertId}`,
+        type: 'DELETE',
+        success: function(response) {
+            if (response.success) {
+                $(`#alert-${alertId}`).remove();
+                showAlertMessage('删除告警设置成功', 'success');
+            } else {
+                showAlertMessage(response.message, 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.log('AJAX Error:', status, error);
+            console.log('Response:', xhr.responseText);
+            showAlertMessage(`网络错误: ${status} - ${error}，请查看控制台获取详细信息`, 'error');
+        }
+    });
+}
+
+function editAlert(alertId) {
+    // 获取告警详情
+    $.ajax({
+        url: `/api/alerts/${alertId}`,
+        type: 'GET',
+        success: function(response) {
+            if (response.success) {
+                const alert = response.alert;
+                // 填充表单数据
+                $('#editAlertId').val(alert.id);
+                $('#editModelId').val(alert.model_id);
+                $('#editThreshold').val(alert.threshold);
+                $('#editAlertMessage').val(alert.alert_message || '库存不足');
+                $('#editIsActive').prop('checked', alert.is_active);
+                // 打开模态框
+                $('#editAlertModal').modal('show');
+            } else {
+                showAlertMessage('获取告警详情失败', 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.log('AJAX Error:', status, error);
+            console.log('Response:', xhr.responseText);
+            showAlertMessage(`网络错误: ${status} - ${error}，请查看控制台获取详细信息`, 'error');
+        }
+    });
+}
+
+function updateAlert() {
+    const formData = {
+        id: $('#editAlertId').val(),
+        threshold: $('#editThreshold').val(),
+        alert_message: $('#editAlertMessage').val().trim() || '库存不足',
+        is_active: $('#editIsActive').is(':checked')
+    };
+
+    if (formData.threshold === '' || formData.threshold < 0) {
+        alert('告警阈值必须大于等于0');
+        return;
+    }
+
+    $.ajax({
+        url: '/api/alerts',
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            if (response.success) {
+                $('#editAlertModal').modal('hide');
+                loadAlerts();
+                showAlertMessage('更新告警设置成功', 'success');
+            } else {
+                showAlertMessage(response.message, 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.log('AJAX Error:', status, error);
+            console.log('Response:', xhr.responseText);
+            showAlertMessage(`网络错误: ${status} - ${error}，请查看控制台获取详细信息`, 'error');
+        }
+    });
+}
+
+function loadAlerts() {
+    $.ajax({
+        url: '/api/alerts',
+        type: 'GET',
+        success: function(response) {
+            if (response.success) {
+                const tbody = $('#alertsTable');
+                tbody.empty();
+                
+                response.alerts.forEach(alert => {
+                    const row = `
+                        <tr id="alert-${alert.id}">
+                            <td>${alert.id}</td>
+                            <td>${alert.category_name}</td>
+                            <td>${alert.model_name}</td>
+                            <td>${alert.model_code}</td>
+                            <td>${alert.threshold}</td>
+                            <td>${alert.alert_message}</td>
+                            <td>
+                                <span class="badge bg-${alert.is_active ? 'success' : 'danger'}">
+                                    ${alert.is_active ? '启用' : '禁用'}
+                                </span>
+                            </td>
+                            <td>${alert.created_at ? (typeof alert.created_at === 'string' ? alert.created_at.slice(0, 19).replace('T', ' ') : new Date(alert.created_at).toISOString().slice(0, 19).replace('T', ' ')) : '-'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary me-2" onclick="editAlert(${alert.id})">
+                                    <i class="fas fa-edit"></i> 编辑
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteAlert(${alert.id}, '${alert.model_name}')">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.append(row);
+                });
+            }
+        }
+    });
+}
+
+function showAlertMessage(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 'alert-success';
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    $('.content').prepend(alertHtml);
+    
+    setTimeout(() => {
+        $('.alert').alert('close');
+    }, 3000);
+}
+
+$(document).ready(function() {
+    // 模态框关闭时重置表单
+    $('#addAlertModal').on('hidden.bs.modal', function() {
+        $('#addAlertForm')[0].reset();
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}出入库用途管理 - 设备库存管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-list text-info"></i> 出入库用途管理
+    </h1>
+    <div>
+        <button class="btn btn-outline-primary" onclick="refreshPurposes()">
+            <i class="fas fa-sync-alt"></i> 刷新
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 入库用途 -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-arrow-down"></i> 入库用途
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- 添加入库用途 -->
+                <div class="mb-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="newInboundPurpose" placeholder="请输入新的入库用途">
+                        <button class="btn btn-success" onclick="addInboundPurpose()">
+                            <i class="fas fa-plus"></i> 添加
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 入库用途列表 -->
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用途名称</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inboundPurposesTable">
+                        {% for purpose in inbound_purposes %}
+                        <tr>
+                            <td>{{ purpose.id }}</td>
+                            <td>{{ purpose.type_name }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteInboundPurpose({{ purpose.id }})">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 出库用途 -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-arrow-up"></i> 出库用途
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- 添加出库用途 -->
+                <div class="mb-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="newOutboundPurpose" placeholder="请输入新的出库用途">
+                        <button class="btn btn-danger" onclick="addOutboundPurpose()">
+                            <i class="fas fa-plus"></i> 添加
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 出库用途列表 -->
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用途名称</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="outboundPurposesTable">
+                        {% for purpose in outbound_purposes %}
+                        <tr>
+                            <td>{{ purpose.id }}</td>
+                            <td>{{ purpose.purpose_name }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteOutboundPurpose({{ purpose.id }})">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAlert(message, type) {
+    // 根据类型设置不同的颜色类
+    let alertClass;
+    switch(type) {
+        case 'success':
+            alertClass = 'alert-success';
+            break;
+        case 'danger':
+            alertClass = 'alert-danger';
+            break;
+        case 'warning':
+            alertClass = 'alert-warning';
+            break;
+        default:
+            alertClass = 'alert-info';
+    }
+    
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    // 在内容区域顶部添加提示信息
+    $('.content').prepend(alertHtml);
+    
+    // 3秒后自动关闭
+    setTimeout(() => {
+        $('.alert').alert('close');
+    }, 3000);
+}
+
+function refreshPurposes() {
+    // 刷新入库用途 - 直接从API获取用途列表
+    fetch('/api/inbound/purpose', {
+        method: 'GET'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 更新入库用途列表
+            const inboundTable = document.getElementById('inboundPurposesTable');
+            inboundTable.innerHTML = '';
+            
+            data.purposes.forEach(purpose => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${purpose.id}</td>
+                    <td>${purpose.purpose_name}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteInboundPurpose(${purpose.id})">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
+                    </td>
+                `;
+                inboundTable.appendChild(row);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('刷新入库用途失败:', error);
+    });
+    
+    // 刷新出库用途 - 直接从API获取用途列表
+    fetch('/api/outbound/purpose', {
+        method: 'GET'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 更新出库用途列表
+            const outboundTable = document.getElementById('outboundPurposesTable');
+            outboundTable.innerHTML = '';
+            
+            data.purposes.forEach(purpose => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${purpose.id}</td>
+                    <td>${purpose.purpose_name}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteOutboundPurpose(${purpose.id})">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
+                    </td>
+                `;
+                outboundTable.appendChild(row);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('刷新出库用途失败:', error);
+    });
+    
+    showAlert('数据已刷新', 'success');
+}
+
+function addInboundPurpose() {
+    const purposeName = document.getElementById('newInboundPurpose').value.trim();
+    if (!purposeName) {
+        showAlert('用途名称不能为空', 'warning');
+        return;
+    }
+    
+    fetch('/api/inbound/purpose', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ purpose_name: purposeName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('入库用途添加成功', 'success');
+            document.getElementById('newInboundPurpose').value = '';
+            // 刷新入库用途列表
+            refreshPurposes();
+        } else {
+            showAlert('入库用途添加失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('入库用途添加失败', 'danger');
+    });
+}
+
+function addOutboundPurpose() {
+    const purposeName = document.getElementById('newOutboundPurpose').value.trim();
+    if (!purposeName) {
+        showAlert('用途名称不能为空', 'warning');
+        return;
+    }
+    
+    fetch('/api/outbound/purpose', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ purpose_name: purposeName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('出库用途添加成功', 'success');
+            document.getElementById('newOutboundPurpose').value = '';
+            // 刷新出库用途列表
+            refreshPurposes();
+        } else {
+            showAlert('出库用途添加失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('出库用途添加失败', 'danger');
+    });
+}
+
+function deleteInboundPurpose(id) {
+    if (confirm('确定要删除这个入库用途吗？')) {
+        fetch(`/api/inbound/purpose?id=${id}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('入库用途删除成功', 'success');
+                refreshPurposes();
+            } else {
+                showAlert('入库用途删除失败: ' + data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('入库用途删除失败', 'danger');
+        });
+    }
+}
+
+function deleteOutboundPurpose(id) {
+    if (confirm('确定要删除这个出库用途吗？')) {
+        fetch(`/api/outbound/purpose?id=${id}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('出库用途删除成功', 'success');
+                refreshPurposes();
+            } else {
+                showAlert('出库用途删除失败: ' + data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('出库用途删除失败', 'danger');
+        });
+    }
+}
+
+// 页面加载时刷新数据
+document.addEventListener('DOMContentLoaded', function() {
+    refreshPurposes();
+});
+</script>
+{% endblock %}

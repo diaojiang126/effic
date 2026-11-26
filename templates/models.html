@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}设备型号管理 - 设备库存管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-cube text-success"></i> 设备型号管理
+    </h1>
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addModelModal">
+        <i class="fas fa-plus"></i> 添加型号
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list"></i> 型号列表
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>分类</th>
+                        <th>型号名称</th>
+                        <th>型号代码</th>
+                        <th>描述</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="modelsTable">
+                    {% for model in models %}
+                    <tr id="model-{{ model.id }}">
+                        <td>{{ model.id }}</td>
+                        <td>{{ model.category_name }}</td>
+                        <td>{{ model.model_name }}</td>
+                        <td>{{ model.model_code }}</td>
+                        <td>{{ model.description or '-' }}</td>
+                        <td>{{ model.created_at.strftime('%Y-%m-%d %H:%M') if model.created_at else '-' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-2" onclick="editModel({{ model.id }})">
+                                <i class="fas fa-edit"></i> 编辑
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteModel({{ model.id }}, '{{ model.model_name }}')">
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 添加型号模态框 -->
+<div class="modal fade" id="addModelModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加设备型号</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addModelForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="modelCategory" class="form-label">设备分类 *</label>
+                                <select class="form-control" id="modelCategory" name="category_id" required>
+                                    <option value="">请选择分类</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}">{{ category.category_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="modelCode" class="form-label">型号代码 *</label>
+                                <input type="text" class="form-control" id="modelCode" name="model_code" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modelName" class="form-label">型号名称 *</label>
+                        <input type="text" class="form-control" id="modelName" name="model_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modelDescription" class="form-label">描述</label>
+                        <textarea class="form-control" id="modelDescription" name="description" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modelSpecifications" class="form-label">规格参数</label>
+                        <textarea class="form-control" id="modelSpecifications" name="specifications" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-success" onclick="addModel()">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑型号模态框 -->
+<div class="modal fade" id="editModelModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑设备型号</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editModelForm">
+                    <input type="hidden" id="editModelId" name="model_id">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editModelCategory" class="form-label">设备分类 *</label>
+                                <select class="form-control" id="editModelCategory" name="category_id" required>
+                                    <option value="">请选择分类</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}">{{ category.category_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editModelCode" class="form-label">型号代码 *</label>
+                                <input type="text" class="form-control" id="editModelCode" name="model_code" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editModelName" class="form-label">型号名称 *</label>
+                        <input type="text" class="form-control" id="editModelName" name="model_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editModelDescription" class="form-label">描述</label>
+                        <textarea class="form-control" id="editModelDescription" name="description" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editModelSpecifications" class="form-label">规格参数</label>
+                        <textarea class="form-control" id="editModelSpecifications" name="specifications" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="updateModel()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addModel() {
+    const formData = {
+        category_id: $('#modelCategory').val(),
+        model_name: $('#modelName').val().trim(),
+        model_code: $('#modelCode').val().trim(),
+        description: $('#modelDescription').val().trim(),
+        specifications: $('#modelSpecifications').val().trim()
+    };
+
+    if (!formData.category_id) {
+        alert('请选择设备分类');
+        return;
+    }
+    if (!formData.model_name) {
+        alert('型号名称不能为空');
+        return;
+    }
+    if (!formData.model_code) {
+        alert('型号代码不能为空');
+        return;
+    }
+
+    $.ajax({
+        url: '/api/models',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            if (response.success) {
+                $('#addModelModal').modal('hide');
+                $('#addModelForm')[0].reset();
+                loadModels();
+                showAlert('添加型号成功', 'success');
+            } else {
+                showAlert(response.message, 'error');
+            }
+        },
+        error: function() {
+            showAlert('网络错误，请重试', 'error');
+        }
+    });
+}
+
+function deleteModel(modelId, modelName) {
+    if (!confirm(`确定要删除型号 "${modelName}" 吗？此操作不可恢复！`)) {
+        return;
+    }
+
+    $.ajax({
+        url: `/api/models?id=${modelId}`,
+        type: 'DELETE',
+        success: function(response) {
+            if (response.success) {
+                $(`#model-${modelId}`).remove();
+                showAlert('删除型号成功', 'success');
+            } else {
+                showAlert(response.message, 'error');
+            }
+        },
+        error: function() {
+            showAlert('网络错误，请重试', 'error');
+        }
+    });
+}
+
+function editModel(modelId) {
+    // 获取型号详情
+    $.ajax({
+        url: `/api/models?id=${modelId}`,
+        type: 'GET',
+        success: function(response) {
+            if (response.success) {
+                const model = response.model;
+                // 填充表单数据
+                $('#editModelId').val(model.id);
+                $('#editModelCategory').val(model.category_id);
+                $('#editModelName').val(model.model_name);
+                $('#editModelCode').val(model.model_code);
+                $('#editModelDescription').val(model.description || '');
+                $('#editModelSpecifications').val(model.specifications || '');
+                // 打开模态框
+                $('#editModelModal').modal('show');
+            } else {
+                showAlert('获取型号详情失败', 'error');
+            }
+        },
+        error: function() {
+            showAlert('网络错误，请重试', 'error');
+        }
+    });
+}
+
+function updateModel() {
+    const formData = {
+        model_id: $('#editModelId').val(),
+        category_id: $('#editModelCategory').val(),
+        model_name: $('#editModelName').val().trim(),
+        model_code: $('#editModelCode').val().trim(),
+        description: $('#editModelDescription').val().trim(),
+        specifications: $('#editModelSpecifications').val().trim()
+    };
+
+    if (!formData.category_id) {
+        alert('请选择设备分类');
+        return;
+    }
+    if (!formData.model_name) {
+        alert('型号名称不能为空');
+        return;
+    }
+    if (!formData.model_code) {
+        alert('型号代码不能为空');
+        return;
+    }
+
+    $.ajax({
+        url: '/api/models',
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            if (response.success) {
+                $('#editModelModal').modal('hide');
+                loadModels();
+                showAlert('更新型号成功', 'success');
+            } else {
+                showAlert(response.message, 'error');
+            }
+        },
+        error: function() {
+            showAlert('网络错误，请重试', 'error');
+        }
+    });
+}
+
+function loadModels() {
+    $.ajax({
+        url: '/api/models',
+        type: 'GET',
+        success: function(response) {
+            if (response.success) {
+                const tbody = $('#modelsTable');
+                tbody.empty();
+                
+                response.models.forEach(model => {
+                    const row = `
+                        <tr id="model-${model.id}">
+                            <td>${model.id}</td>
+                            <td>${model.category_name}</td>
+                            <td>${model.model_name}</td>
+                            <td>${model.model_code}</td>
+                            <td>${model.description || '-'}</td>
+                            <td>${model.created_at ? (typeof model.created_at === 'string' ? model.created_at.slice(0, 19).replace('T', ' ') : new Date(model.created_at).toISOString().slice(0, 19).replace('T', ' ')) : '-'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary me-2" onclick="editModel(${model.id})">
+                                    <i class="fas fa-edit"></i> 编辑
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteModel(${model.id}, '${model.model_name}')">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.append(row);
+                });
+            }
+        }
+    });
+}
+
+function showAlert(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 'alert-success';
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    $('.content').prepend(alertHtml);
+    
+    setTimeout(() => {
+        $('.alert').alert('close');
+    }, 3000);
+}
+
+$(document).ready(function() {
+    // 模态框关闭时重置表单
+    $('#addModelModal').on('hidden.bs.modal', function() {
+        $('#addModelForm')[0].reset();
+    });
+});
+</script>
+{% endblock %}

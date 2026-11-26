@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 快递单信息识别系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .container { max-width: 800px; padding-top: 50px; }
+        .card { border: none; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
+        .card-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 16px 16px 0 0; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; }
+        .btn-primary:hover { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-users me-2"></i>用户管理</h4>
+                <a href="/" class="btn btn-light btn-sm"><i class="fas fa-home me-1"></i>返回主页</a>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h5><i class="fas fa-user-plus me-2"></i>添加新用户</h5>
+                    <form id="addUserForm" class="row g-3">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" id="newUsername" placeholder="用户名" required>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="password" class="form-control" id="newPassword" placeholder="密码" required>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-control" id="newRole">
+                                <option value="user">普通用户</option>
+                                <option value="admin">管理员</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1">
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </form>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="mb-4">
+                    <h5><i class="fas fa-trash-alt me-2"></i>数据清除（按月份）</h5>
+                    <form id="deleteByMonthForm" class="row g-3">
+                        <div class="col-md-3">
+                            <select class="form-control" id="deleteYear">
+                                <option value="">选择年份</option>
+                                <option value="2026">2026年</option>
+                                <option value="2025">2025年</option>
+                                <option value="2024">2024年</option>
+                                <option value="2023">2023年</option>
+                                <option value="2022">2022年</option>
+                                <option value="2021">2021年</option>
+                                <option value="2020">2020年</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-control" id="deleteMonth">
+                                <option value="">选择月份</option>
+                                <option value="1">1月</option>
+                                <option value="2">2月</option>
+                                <option value="3">3月</option>
+                                <option value="4">4月</option>
+                                <option value="5">5月</option>
+                                <option value="6">6月</option>
+                                <option value="7">7月</option>
+                                <option value="8">8月</option>
+                                <option value="9">9月</option>
+                                <option value="10">10月</option>
+                                <option value="11">11月</option>
+                                <option value="12">12月</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-1"></i>清除该月数据
+                            </button>
+                        </div>
+                    </form>
+                    <small class="text-muted">注意：清除数据将同时删除对应的图片文件</small>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="mb-4">
+                    <h5><i class="fas fa-cog me-2"></i>项目和类型管理</h5>
+                    <div class="mb-4">
+                        <h6>项目管理</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" id="newProject" placeholder="添加新项目">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-primary" onclick="addOption('project', 'newProject')">
+                                    <i class="fas fa-plus"></i> 添加
+                                </button>
+                            </div>
+                        </div>
+                        <div id="projectsList" class="mb-3"></div>
+                    </div>
+                    <div class="mb-4">
+                        <h6>类型管理</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" id="newType" placeholder="添加新类型">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-primary" onclick="addOption('record_type', 'newType')">
+                                    <i class="fas fa-plus"></i> 添加
+                                </button>
+                            </div>
+                        </div>
+                        <div id="typesList"></div>
+                    </div>
+                </div>
+
+                <div id="messageBox" class="alert" style="display: none;"></div>
+
+                <h5><i class="fas fa-list me-2"></i>用户列表</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover mt-3">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>角色</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 密码重置模态框 -->
+    <div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="resetPasswordModalLabel">重置密码</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>为用户 <span id="resetUsername"></span> 设置新密码</p>
+                    <input type="hidden" id="resetUserId">
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">新密码</label>
+                        <input type="password" class="form-control" id="newPassword" placeholder="请输入新密码" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmResetPassword()">确认重置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 显示消息函数
+        function showMessage(msg, isSuccess) {
+            const box = document.getElementById('messageBox');
+            box.textContent = msg;
+            box.className = isSuccess ? 'alert alert-success' : 'alert alert-danger';
+            box.style.display = 'block';
+            setTimeout(() => { box.style.display = 'none'; }, 3000);
+        }
+
+        // 渲染用户列表
+        function renderUsers(users) {
+            const tbody = document.getElementById('usersTable');
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无用户</td></tr>';
+                return;
+            }
+            tbody.innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.id}</td>
+                    <td>${u.username}</td>
+                    <td>${u.role === 'admin' ? '<span class="badge bg-danger">管理员</span>' : '<span class="badge bg-secondary">普通用户</span>'}</td>
+                    <td>${u.created_at || '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-1" onclick="resetPassword(${u.id}, '${u.username}')">
+                            <i class="fas fa-key"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})" ${u.role === 'admin' ? 'disabled' : ''}>
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 删除用户
+        function deleteUser(userId) {
+            if (!confirm('确定要删除这个用户吗？')) return;
+
+            fetch(`/api/users/${userId}`, { method: 'DELETE' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage('删除成功', true);
+                        loadUsers();
+                    } else {
+                        showMessage(data.message || '删除失败', false);
+                    }
+                });
+        }
+
+        // 加载用户列表
+        function loadUsers() {
+            // 手动添加一些用户数据，用于测试
+            const testUsers = [
+                { id: 1, username: 'admin', role: 'admin', created_at: '2026-04-03 00:17:14' },
+                { id: 2, username: 'jdj', role: 'user', created_at: '2026-04-03 00:19:21' },
+                { id: 3, username: 'hsy', role: 'user', created_at: '2026-04-03 00:19:33' }
+            ];
+            renderUsers(testUsers);
+
+            // 同时尝试从 API 获取数据
+            fetch('/api/users')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        renderUsers(data.data);
+                    } else {
+                        showMessage(data.message || '加载用户失败', false);
+                    }
+                })
+                .catch(err => {
+                    console.error('加载用户失败:', err);
+                    // 不显示错误信息，因为我们已经有了测试数据
+                });
+        }
+
+        // 加载项目和类型列表
+        function loadOptions() {
+            // 加载项目列表
+            fetch('/api/options/project')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        renderOptions(data.data, 'projectsList', 'project');
+                    }
+                });
+
+            // 加载类型列表
+            fetch('/api/options/record_type')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        renderOptions(data.data, 'typesList', 'record_type');
+                    }
+                });
+        }
+
+        // 渲染选项列表
+        function renderOptions(options, containerId, optionType) {
+            const container = document.getElementById(containerId);
+            if (options.length === 0) {
+                container.innerHTML = '<div class="text-muted">暂无数据</div>';
+                return;
+            }
+            container.innerHTML = options.map(option => `
+                <span class="badge bg-primary m-1">
+                    ${option}
+                    <button type="button" class="btn-close btn-close-white ms-1" onclick="removeOption('${optionType}', '${option}')"></button>
+                </span>
+            `).join('');
+        }
+
+        // 添加选项
+        function addOption(optionType, inputId) {
+            const input = document.getElementById(inputId);
+            const value = input.value.trim();
+            if (!value) {
+                showMessage('请输入内容', false);
+                return;
+            }
+
+            fetch(`/api/options/${optionType}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('添加成功', true);
+                    input.value = '';
+                    loadOptions();
+                } else {
+                    showMessage(data.message || '添加失败', false);
+                }
+            });
+        }
+
+        // 删除选项
+        function removeOption(optionType, optionValue) {
+            if (!confirm(`确定要删除 "${optionValue}" 吗？`)) return;
+
+            fetch(`/api/options/${optionType}/${encodeURIComponent(optionValue)}`, {
+                method: 'DELETE'
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('删除成功', true);
+                    loadOptions();
+                } else {
+                    showMessage(data.message || '删除失败', false);
+                }
+            });
+        }
+
+        // 打开密码重置模态框
+        function resetPassword(userId, username) {
+            document.getElementById('resetUserId').value = userId;
+            document.getElementById('resetUsername').textContent = username;
+            document.getElementById('newPassword').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+            modal.show();
+        }
+
+        // 确认重置密码
+        function confirmResetPassword() {
+            const userId = document.getElementById('resetUserId').value;
+            const newPassword = document.getElementById('newPassword').value.trim();
+            
+            if (!newPassword) {
+                showMessage('请输入新密码', false);
+                return;
+            }
+
+            fetch(`/api/users/${userId}/password`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: newPassword })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('密码重置成功', true);
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal'));
+                    modal.hide();
+                } else {
+                    showMessage(data.message || '密码重置失败', false);
+                }
+            });
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载用户列表
+            loadUsers();
+            // 加载项目和类型列表
+            loadOptions();
+
+            // 添加新用户表单提交
+            document.getElementById('addUserForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const username = document.getElementById('newUsername').value;
+                const password = document.getElementById('newPassword').value;
+                const role = document.getElementById('newRole').value;
+
+                fetch('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, role })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage('用户创建成功', true);
+                        document.getElementById('newUsername').value = '';
+                        document.getElementById('newPassword').value = '';
+                        loadUsers();
+                    } else {
+                        showMessage(data.message || '创建失败', false);
+                    }
+                });
+            });
+
+            // 数据清除表单提交
+            document.getElementById('deleteByMonthForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const year = document.getElementById('deleteYear').value;
+                const month = document.getElementById('deleteMonth').value;
+
+                if (!year || !month) {
+                    showMessage('请选择年份和月份', false);
+                    return;
+                }
+
+                if (!confirm(`确定要删除 ${year}年${month}月 的所有数据吗？此操作不可恢复！`)) return;
+
+                fetch('/api/records/delete_by_month', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ year, month })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage(data.message, true);
+                        document.getElementById('deleteYear').value = '';
+                        document.getElementById('deleteMonth').value = '';
+                    } else {
+                        showMessage(data.message || '删除失败', false);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

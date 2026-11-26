@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+
+{% block title %}店号店名管理 - 设备库存管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-store text-primary"></i> 店号店名管理
+    </h1>
+    <div>
+        <button class="btn btn-outline-success me-2" onclick="showImportModal()">
+            <i class="fas fa-file-import"></i> 批量导入
+        </button>
+        <button class="btn btn-outline-primary" onclick="refreshStores()">
+            <i class="fas fa-sync-alt"></i> 刷新
+        </button>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-plus-circle"></i> 添加店号店名
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-2">
+                <input type="text" class="form-control" id="storeCode" placeholder="店号 *">
+            </div>
+            <div class="col-md-3">
+                <input type="text" class="form-control" id="storeName" placeholder="店名 *">
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control" id="contactPerson" placeholder="联系人">
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control" id="phone" placeholder="电话">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" onclick="addStore()">
+                    <i class="fas fa-plus"></i> 添加
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-list"></i> 店号店名列表
+        </h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>店号</th>
+                    <th>店名</th>
+                    <th>联系人</th>
+                    <th>电话</th>
+                    <th>地址</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="storesTable">
+                {% for store in stores %}
+                <tr>
+                    <td>{{ store.id }}</td>
+                    <td>{{ store.store_code }}</td>
+                    <td>{{ store.store_name }}</td>
+                    <td>{{ store.contact_person or '' }}</td>
+                    <td>{{ store.phone or '' }}</td>
+                    <td>{{ store.address or '' }}</td>
+                    <td>{{ store.created_at.strftime('%Y-%m-%d %H:%M') if store.created_at else '' }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editStore({{ store.id }}, '{{ store.store_code }}', '{{ store.store_name }}', '{{ store.contact_person or '' }}', '{{ store.phone or '' }}', '{{ store.address or '' }}', '{{ store.description or '' }}')">
+                            <i class="fas fa-edit"></i> 编辑
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteStore({{ store.id }})">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 编辑模态框 -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑店号店名</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editStoreId">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">店号 *</label>
+                        <input type="text" class="form-control" id="editStoreCode">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">店名 *</label>
+                        <input type="text" class="form-control" id="editStoreName">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">联系人</label>
+                        <input type="text" class="form-control" id="editContactPerson">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">电话</label>
+                        <input type="text" class="form-control" id="editPhone">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">地址</label>
+                    <input type="text" class="form-control" id="editAddress">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">备注</label>
+                    <textarea class="form-control" id="editDescription" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveStore()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 批量导入模态框 -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">批量导入店号店名</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <strong>Excel文件格式要求：</strong>
+                    <ul class="mb-0">
+                        <li>必需列：店号、店名</li>
+                        <li>可选列：联系人、电话、地址、备注</li>
+                    </ul>
+                </div>
+                <form id="importForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">选择Excel文件</label>
+                        <input type="file" class="form-control" id="importFile" name="file" accept=".xlsx,.xls">
+                    </div>
+                </form>
+                <div id="importResult" class="alert alert-success" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="importStores()">
+                    <i class="fas fa-upload"></i> 导入
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function refreshStores() {
+    fetch('/api/stores')
+        .then(response => response.json())
+        .then(data => {
+            if (Array.isArray(data)) {
+                const tbody = document.getElementById('storesTable');
+                tbody.innerHTML = '';
+                
+                data.forEach(store => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${store.id}</td>
+                        <td>${store.store_code}</td>
+                        <td>${store.store_name}</td>
+                        <td>${store.contact_person || ''}</td>
+                        <td>${store.phone || ''}</td>
+                        <td>${store.address || ''}</td>
+                        <td>${store.created_at}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="editStore(${store.id}, '${store.store_code}', '${store.store_name}', '${store.contact_person || ''}', '${store.phone || ''}', '${store.address || ''}', '${store.description || ''}')">
+                                <i class="fas fa-edit"></i> 编辑
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteStore(${store.id})">
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                showAlert('数据已刷新', 'success');
+            } else {
+                showAlert('刷新失败: ' + (data.message || '未知错误'), 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('刷新失败', 'danger');
+        });
+}
+
+function addStore() {
+    const storeCode = document.getElementById('storeCode').value.trim();
+    const storeName = document.getElementById('storeName').value.trim();
+    const contactPerson = document.getElementById('contactPerson').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    
+    if (!storeCode || !storeName) {
+        showAlert('店号和店名不能为空', 'warning');
+        return;
+    }
+    
+    fetch('/api/stores', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+            store_code: storeCode,
+            store_name: storeName,
+            contact_person: contactPerson,
+            phone: phone
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('添加成功', 'success');
+            document.getElementById('storeCode').value = '';
+            document.getElementById('storeName').value = '';
+            document.getElementById('contactPerson').value = '';
+            document.getElementById('phone').value = '';
+            refreshStores();
+        } else {
+            showAlert('添加失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('添加失败', 'danger');
+    });
+}
+
+function editStore(id, code, name, contact, phone, address, desc) {
+    document.getElementById('editStoreId').value = id;
+    document.getElementById('editStoreCode').value = code;
+    document.getElementById('editStoreName').value = name;
+    document.getElementById('editContactPerson').value = contact;
+    document.getElementById('editPhone').value = phone;
+    document.getElementById('editAddress').value = address;
+    document.getElementById('editDescription').value = desc;
+    
+    const modal = new bootstrap.Modal(document.getElementById('editModal'));
+    modal.show();
+}
+
+function saveStore() {
+    const id = document.getElementById('editStoreId').value;
+    const code = document.getElementById('editStoreCode').value.trim();
+    const name = document.getElementById('editStoreName').value.trim();
+    const contact = document.getElementById('editContactPerson').value.trim();
+    const phone = document.getElementById('editPhone').value.trim();
+    const address = document.getElementById('editAddress').value.trim();
+    const desc = document.getElementById('editDescription').value.trim();
+    
+    if (!code || !name) {
+        showAlert('店号和店名不能为空', 'warning');
+        return;
+    }
+    
+    fetch(`/api/stores/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+            store_code: code,
+            store_name: name,
+            contact_person: contact,
+            phone: phone,
+            address: address,
+            description: desc
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('更新成功', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+            refreshStores();
+        } else {
+            showAlert('更新失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('更新失败', 'danger');
+    });
+}
+
+function deleteStore(id) {
+    if (confirm('确定要删除这个店号店名吗？')) {
+        fetch(`/api/stores/${id}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('删除成功', 'success');
+                refreshStores();
+            } else {
+                showAlert('删除失败: ' + data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('删除失败', 'danger');
+        });
+    }
+}
+
+function showImportModal() {
+    document.getElementById('importFile').value = '';
+    document.getElementById('importResult').style.display = 'none';
+    const modal = new bootstrap.Modal(document.getElementById('importModal'));
+    modal.show();
+}
+
+function importStores() {
+    const fileInput = document.getElementById('importFile');
+    if (!fileInput.files.length) {
+        showAlert('请选择文件', 'warning');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    
+    fetch('/api/stores/batch_import', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultDiv = document.getElementById('importResult');
+        resultDiv.style.display = 'block';
+        if (data.success) {
+            resultDiv.className = 'alert alert-success';
+            resultDiv.textContent = data.message;
+            refreshStores();
+        } else {
+            resultDiv.className = 'alert alert-danger';
+            resultDiv.textContent = data.message;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('导入失败', 'danger');
+    });
+}
+</script>
+{% endblock %}

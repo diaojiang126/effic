@@ -1,0 +1,248 @@
+diff --git a/app.py b/app.py
+index 3e3fddb..73f7f64 100644
+--- a/app.py
++++ b/app.py
+@@ -95,6 +95,25 @@ MAX_BATCH_ITEMS = 200
+ 
+ jwt = JWTManager(app)
+ 
++# 应用文件日志：IIS/wfastcgi 的 WSGI_LOG 只记录 wfastcgi 自身输出，不记录应用 print/异常，
++# 导致故障（如数据库连不上）被 return [] 静默吞掉后完全无迹可查。此处单独落盘。
++import logging
++from logging.handlers import RotatingFileHandler
++
++_LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
++try:
++    os.makedirs(_LOG_DIR, exist_ok=True)
++    _file_handler = RotatingFileHandler(
++        os.path.join(_LOG_DIR, 'app.log'),
++        maxBytes=20 * 1024 * 1024, backupCount=5, encoding='utf-8'
++    )
++    _file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
++    app.logger.addHandler(_file_handler)
++    app.logger.setLevel(logging.INFO)
++    print(f"[LOG] 应用日志已启用: {os.path.join(_LOG_DIR, 'app.log')}")
++except Exception as _log_err:
++    print(f"[WARN] 应用日志初始化失败: {_log_err}")
++
+ # 权限控制装饰器
+ def login_required(f):
+     """装饰器：限制未登录用户访问"""
+@@ -255,7 +274,13 @@ class DatabaseManager:
+             return False
+     
+     def connect(self):
+-        """连接到MySQL数据库"""
++        """连接到MySQL数据库
++
++        注意：self.connection 是进程内共享的单连接。若直接覆盖赋值，旧连接（及其
++        socket / 句柄）会被丢弃而永不关闭，长期运行将造成连接与句柄泄漏（本次生产
++        故障即与此类资源泄漏相关）。因此这里先释放旧连接，再建立新连接。
++        """
++        self.close()  # 先关闭可能残留的旧连接，避免覆盖丢弃导致泄漏
+         try:
+             self.connection = pymysql.connect(
+                 host=self.host,
+@@ -263,7 +288,9 @@ class DatabaseManager:
+                 password=self.password,
+                 database=self.database,
+                 charset='utf8mb4',
+-                connect_timeout=30,
++                connect_timeout=10,
++                read_timeout=60,
++                write_timeout=60,
+                 autocommit=False
+             )
+             
+@@ -295,10 +322,18 @@ class DatabaseManager:
+             return None
+     
+     def close(self):
+-        """关闭数据库连接"""
+-        if self.connection :
+-            self.connection.close()
+-        self.connection = None
++        """关闭数据库连接
++
++        必须保证 self.connection 一定被置空：若 close() 抛异常而提前返回，引用与
++        底层 socket 都会残留，下一次 connect() 又会将其覆盖丢弃，形成连接泄漏。
++        """
++        conn = self.connection
++        self.connection = None          # 先断开引用，确保无论如何都会置空
++        if conn:
++            try:
++                conn.close()
++            except Exception as e:
++                print(f"关闭数据库连接失败: {e}")
+     
+     def create_tables(self):
+         """创建数据库表"""
+@@ -879,7 +914,9 @@ class DatabaseManager:
+         try:
+             conn = self.get_connection()
+             if not conn:
+-                print("get_all_companies: 获取数据库连接失败")
++                msg = "get_all_companies: 获取数据库连接失败（数据库不可用）"
++                print(msg)
++                app.logger.error(msg)
+                 return []
+             cursor = conn.cursor(pymysql.cursors.DictCursor)
+             cursor.execute("SELECT * FROM companies WHERE is_active = TRUE ORDER BY company_name")
+@@ -892,8 +929,7 @@ class DatabaseManager:
+             return companies
+         except Exception as e:
+             print(f"获取公司列表失败: {e}")
+-            import traceback
+-            traceback.print_exc()
++            app.logger.exception(f"获取公司列表失败: {e}")
+             return []
+         finally:
+             if cursor:
+@@ -4437,6 +4473,19 @@ class DatabaseManager:
+ # 创建数据库管理器实例
+ db_manager = DatabaseManager()
+ 
++@app.teardown_request
++def _release_db_connection(exception=None):
++    """请求结束（含异常）时强制释放共享数据库连接。
++
++    原先 38 处路由都是 connect() → get_xxx() → close() 的顺序写法，且没有 try/finally，
++    中间任一步抛异常都会跳过 close()，使共享连接滞留、并在下次 connect() 时被覆盖丢弃，
++    长期运行造成连接/句柄泄漏。这里用 teardown 兜底，保证每个请求结束时一定释放。
++    """
++    try:
++        db_manager.close()
++    except Exception as e:
++        print(f"释放数据库连接失败: {e}")
++
+ # 全局系统设置
+ system_settings = {"timezone": "Asia/Shanghai", "language": "zh-CN"}
+ 
+@@ -5905,6 +5954,11 @@ def api_its_workorders(store_code):
+         return jsonify({'success': False, 'message': 'ITS 服务模块未安装'})
+     except Exception as e:
+         return jsonify({'success': False, 'message': f'查询异常: {e}'})
++    finally:
++        try:
++            service.close()      # 释放 requests.Session 占用的套接字，避免累积
++        except Exception:
++            pass
+ 
+ 
+ @app.route('/api/its/captcha')
+@@ -5942,6 +5996,11 @@ def api_its_captcha():
+         return jsonify({'success': False, 'message': 'ITS 服务模块未安装'})
+     except Exception as e:
+         return jsonify({'success': False, 'message': f'获取验证码失败: {e}'})
++    finally:
++        try:
++            service.close()      # 释放 requests.Session 占用的套接字，避免累积
++        except Exception:
++            pass
+ 
+ 
+ @app.route('/api/its/login', methods=['POST'])
+@@ -5983,6 +6042,11 @@ def api_its_login():
+         return jsonify({'success': False, 'message': 'ITS 服务模块未安装'})
+     except Exception as e:
+         return jsonify({'success': False, 'message': f'登录异常: {e}'})
++    finally:
++        try:
++            service.close()      # 释放 requests.Session 占用的套接字，避免累积
++        except Exception:
++            pass
+ 
+ # ==================== ITS 代理路由结束 ====================
+ 
+@@ -6690,11 +6754,58 @@ def login():
+ 
+ @app.route('/api/public/companies')
+ def api_public_companies():
+-    """公开获取公司列表API（无需登录）"""
++    """公开获取公司列表API（无需登录）
++
++    安全要求：该接口无鉴权，任何人均可访问，因此只返回登录选择所需的最小字段，
++    严禁返回 its_url / its_account / its_password 等 ITS 凭据（此前存在明文泄露）。
++    可用性要求：数据库不可用时返回 503，而不是伪装成“空列表”，避免故障被静默掩盖
++    （APP 端此前只会显示“服务器未返回任何公司信息”，无法区分故障与无数据）。
++    """
+     companies = db_manager.get_all_companies()
+     if not companies:
+-        print("api_public_companies: 公司列表为空 — 数据库可能无数据或连接失败")
+-    return jsonify(companies)
++        # 区分“数据库不可用”与“确实没有数据”
++        probe = db_manager.get_connection()
++        if probe is None:
++            app.logger.error("api_public_companies: 数据库不可用，返回 503")
++            return jsonify({'success': False, 'message': '服务暂时不可用，请稍后重试'}), 503
++        try:
++            probe.close()
++        except Exception:
++            pass
++
++    return jsonify([
++        {
++            'id': c.get('id'),
++            'company_code': c.get('company_code'),
++            'company_name': c.get('company_name'),
++            'description': c.get('description') or '',
++            'is_active': bool(c.get('is_active', True)),
++        }
++        for c in companies
++    ])
++
++@app.route('/healthz')
++def healthz():
++    """健康检查端点：同时探测数据库连通性，供监控/探活使用
++
++    返回 200 {"ok": true} 表示服务与数据库均正常；返回 503 表示依赖不可用。
++    """
++    conn = db_manager.get_connection()
++    if conn is None:
++        app.logger.error("healthz: 数据库不可用")
++        return jsonify({'ok': False, 'db': False}), 503
++    try:
++        with conn.cursor() as cur:
++            cur.execute("SELECT 1")
++        return jsonify({'ok': True, 'db': True})
++    except Exception as e:
++        app.logger.exception(f"healthz: 数据库探测失败: {e}")
++        return jsonify({'ok': False, 'db': False}), 503
++    finally:
++        try:
++            conn.close()
++        except Exception:
++            pass
+ 
+ @app.route('/logout')
+ def logout():
+diff --git a/its_service.py b/its_service.py
+index a473e77..d76fce7 100644
+--- a/its_service.py
++++ b/its_service.py
+@@ -105,6 +105,25 @@ class ITSService:
+             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+         })
+ 
++    def close(self):
++        """关闭底层 HTTP 会话，释放连接池占用的套接字。
++
++        requests.Session 会保持 keep-alive 连接，若每次请求都新建而不关闭，
++        长期运行会累积套接字（生产环境曾因此类资源累积触发过套接字资源耗尽），
++        故每次用完必须显式调用 close()。
++        """
++        try:
++            self._session.close()
++        except Exception:
++            pass
++
++    def __enter__(self):
++        return self
++
++    def __exit__(self, exc_type, exc, tb):
++        self.close()
++        return False
++
+     # ------------------------------------------------------------------
+     # 工具方法
+     # ------------------------------------------------------------------

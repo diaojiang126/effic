@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快递单信息识别系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .container { max-width: 1400px; } @media (max-width: 768px) { .container { padding-left: 10px; padding-right: 10px; } }
+        .card { border: none; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
+        .upload-zone { border: 2px dashed #667eea; border-radius: 12px; padding: 60px 20px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: #f8f9fa; }
+        .upload-zone:hover, .upload-zone.dragover { border-color: #764ba2; background: #e9ecef; }
+        .upload-zone i { font-size: 64px; color: #667eea; margin-bottom: 20px; }
+        @media (max-width: 768px) { .upload-zone { padding: 40px 15px; } .upload-zone i { font-size: 48px; margin-bottom: 15px; } .upload-zone h4 { font-size: 18px; } }
+        .info-card { border-left: 4px solid #667eea; margin-bottom: 15px; }
+        .table-responsive { border-radius: 12px; overflow: hidden; } @media (max-width: 768px) { .table-responsive { font-size: 14px; } }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 10px 30px; border-radius: 8px; } @media (max-width: 768px) { .btn-primary { padding: 8px 20px; font-size: 14px; } }
+        .btn-primary:hover { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
+        .modal-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .preview-img { max-width: 100%; max-height: 200px; border-radius: 8px; }
+        .info-label { color: #667eea; font-weight: 600; }
+        .form-control:focus { border-color: #667eea; box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25); }
+        .full-text-area { min-height: 800px; font-family: monospace; } @media (max-width: 768px) { .full-text-area { min-height: 400px; } }
+        .record-image { max-width: 100%; max-height: 200px; }
+        .dropdown-item-danger { color: #dc3545; }
+        .dropdown-item-danger:hover { background-color: #f8d7da; }
+    /* 导出日期范围 */
+    .export-range-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border: 1px solid #e8e8e8;
+        border-radius: 10px;
+        margin-bottom: 12px;
+        font-size: 13px;
+    }
+    .export-range-bar .range-label { color: #555; font-weight: 600; }
+    .export-range-bar .range-date { width: 150px; }
+    .export-range-bar .range-sep { color: #888; }
+    .export-range-bar .range-hint { color: #999; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+            <div class="text-white mb-2 mb-md-0">
+                <h4 class="mb-0"><i class="fas fa-truck-fast me-2"></i>快递单信息识别系统</h4>
+            </div>
+            <div class="d-flex flex-wrap align-items-center">
+                <span class="text-white me-3 mb-1 mb-md-0" id="userInfo"></span>
+                <a href="/users" class="btn btn-light btn-sm me-2 mb-1 mb-md-0" id="userManageBtn" style="display:none;">
+                    <i class="fas fa-users me-1"></i><span class="d-none d-sm-inline">用户管理</span>
+                </a>
+                <a href="/metrics" class="btn btn-light btn-sm me-2 mb-1 mb-md-0" id="metricsBtn" style="display:none;">
+                    <i class="fas fa-chart-line me-1"></i><span class="d-none d-sm-inline">监控</span>
+                </a>
+                <button class="btn btn-outline-light btn-sm mb-1 mb-md-0" onclick="logout()">
+                    <i class="fas fa-sign-out-alt me-1"></i><span class="d-none d-sm-inline">退出</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body p-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="upload-zone" id="uploadZone">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <h4>拖拽图片到这里或点击上传</h4>
+                            <p class="text-muted mb-0">支持 JPG、PNG、BMP、GIF 格式，最大 20MB（原图不做压缩）</p>
+                            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="upload-zone" id="batchUploadZone" style="border-color: #28a745;">
+                            <i class="fas fa-layer-group" style="color: #28a745;"></i>
+                            <h4>批量上传</h4>
+                            <p class="text-muted mb-0">一次选择多张图片进行识别</p>
+                            <input type="file" id="batchFileInput" accept="image/*" multiple style="display: none;">
+                        </div>
+                    </div>
+                </div>
+                <div id="uploadProgress" class="mt-3" style="display: none;">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                    </div>
+                    <p class="text-center mt-2 text-muted">正在识别中...</p>
+                </div>
+                <div id="batchResult" class="mt-3" style="display: none;">
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle me-1"></i> 批量识别完成！成功: <span id="successCount">0</span> 条，失败: <span id="failCount">0</span> 条
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultSection" class="card mb-4" style="display: none;">
+            <div class="card-body p-4">
+                <div id="batchNavBar" class="d-none mb-3 p-2 bg-light rounded">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button class="btn btn-sm btn-secondary" onclick="batchPrevRecord()" id="batchPrevBtn" disabled>
+                            <i class="fas fa-chevron-left me-1"></i>上一条
+                        </button>
+                        <span class="badge bg-primary" id="batchNavInfo">0 / 0</span>
+                        <button class="btn btn-sm btn-secondary" onclick="batchNextRecord()" id="batchNextBtn" disabled>
+                            下一条<i class="fas fa-chevron-right ms-1"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0"><i class="fas fa-check-circle text-success me-2"></i>识别结果</h4>
+                    <div>
+                        <button class="btn btn-primary me-2" onclick="saveResult()"><i class="fas fa-save me-1"></i>保存修改</button>
+                        <button class="btn btn-secondary" onclick="cancelEdit()"><i class="fas fa-times me-1"></i>取消</button>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="info-card p-3 bg-light rounded">
+                            <h6 class="text-warning mb-3"><i class="fas fa-barcode me-2"></i>单号</h6>
+                            <input type="text" class="form-control mb-3" id="expressNo" placeholder="单号">
+                            <h6 class="text-primary mb-3"><i class="fas fa-user me-2"></i>发件人信息</h6>
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">姓名</label>
+                                <input type="text" class="form-control" id="senderName" placeholder="发件人姓名">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">地址</label>
+                                <input type="text" class="form-control" id="senderAddress" placeholder="发件人地址">
+                            </div>
+                        </div>
+                        <div class="info-card p-3 bg-light rounded">
+                            <h6 class="text-danger mb-3"><i class="fas fa-user me-2"></i>收件人信息</h6>
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">姓名</label>
+                                <input type="text" class="form-control" id="receiverName" placeholder="收件人姓名">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">地址</label>
+                                <input type="text" class="form-control" id="receiverAddress" placeholder="收件人地址">
+                            </div>
+                        </div>
+                        <div class="info-card p-3 bg-light rounded">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h6 class="text-success mb-3"><i class="fas fa-money-bill me-2"></i>金额</h6>
+                                    <input type="text" class="form-control" id="amount" placeholder="金额">
+                                </div>
+                                <div class="col-6">
+                                    <h6 class="text-primary mb-3"><i class="fas fa-calendar me-2"></i>日期</h6>
+                                    <input type="date" class="form-control" id="expressDate" placeholder="日期">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="info-card p-3 bg-light rounded">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h6 class="mb-3"><i class="fas fa-folder me-2"></i>项目</h6>
+                                    <div class="dropdown">
+                                        <select class="form-control" id="projectSelect">
+                                            <option value="">请选择</option>
+                                        </select>
+                                        <small class="text-muted"><a href="#" onclick="showAddOptionModal('project'); return false;"><i class="fas fa-plus me-1"></i>添加新项目</a></small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <h6 class="mb-3"><i class="fas fa-tag me-2"></i>类型</h6>
+                                    <div class="dropdown">
+                                        <select class="form-control" id="typeSelect">
+                                            <option value="">请选择</option>
+                                        </select>
+                                        <small class="text-muted"><a href="#" onclick="showAddOptionModal('type'); return false;"><i class="fas fa-plus me-1"></i>添加新类型</a></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold"><i class="fas fa-image me-1"></i>快递单图片</label>
+                            <img id="previewImage" class="preview-img d-block mx-auto" src="" alt="预览">
+                        </div>
+                        <div>
+                            <label class="form-label small fw-bold"><i class="fas fa-file-alt me-1"></i>完整识别文本</label>
+                            <textarea class="form-control full-text-area" id="fullText" placeholder="完整识别文本将显示在这里"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+                    <h4 class="mb-2 mb-md-0"><i class="fas fa-list me-2"></i>识别记录</h4>
+                    <div class="d-flex flex-wrap">
+                        <button class="btn btn-success btn-sm me-2 mb-1 mb-md-0" onclick="exportExcel()"><i class="fas fa-file-excel me-1"></i><span class="d-none d-sm-inline">导出Excel</span></button>
+                        <button class="btn btn-info btn-sm me-2 mb-1 mb-md-0" onclick="exportCsv()"><i class="fas fa-file-csv me-1"></i><span class="d-none d-sm-inline">导出CSV</span></button>
+                        <button class="btn btn-warning btn-sm mb-1 mb-md-0" onclick="exportImages()"><i class="fas fa-images me-1"></i><span class="d-none d-sm-inline">导出图片</span></button>
+                    </div>
+                </div>
+                <!-- 导出日期范围：留空表示导出全部 -->
+                <div class="export-range-bar">
+                    <span class="range-label"><i class="fas fa-calendar-alt"></i> 导出范围</span>
+                    <input type="date" id="exportStartDate" class="form-control form-control-sm range-date">
+                    <span class="range-sep">至</span>
+                    <input type="date" id="exportEndDate" class="form-control form-control-sm range-date">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary" type="button" onclick="setExportRange('today')">今天</button>
+                        <button class="btn btn-outline-secondary" type="button" onclick="setExportRange('yesterday')">昨天</button>
+                        <button class="btn btn-outline-secondary" type="button" onclick="setExportRange('week')">本周</button>
+                        <button class="btn btn-outline-secondary" type="button" onclick="setExportRange('lastMonth')">上月</button>
+                        <button class="btn btn-outline-secondary" type="button" onclick="clearExportRange()">清空</button>
+                    </div>
+                    <span class="range-hint">按寄件日期筛选，留空则导出全部</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="text-nowrap">ID</th>
+                                <th class="text-nowrap">单号</th>
+                                <th class="text-nowrap d-none d-md-table-cell">收件人</th>
+                                <th class="text-nowrap">收件人地址</th>
+                                <th class="text-nowrap">金额</th>
+                                <th class="text-nowrap d-none d-lg-table-cell">日期</th>
+                                <th class="text-nowrap d-none d-lg-table-cell">项目</th>
+                                <th class="text-nowrap d-none d-lg-table-cell">类型</th>
+                                <th class="text-nowrap d-none d-lg-table-cell">录入人</th>
+                                <th class="text-nowrap">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recordsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">记录详情</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="modalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addOptionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addOptionModalTitle">添加选项</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="optionType">
+                    <div class="mb-3">
+                        <label class="form-label">新选项名称</label>
+                        <input type="text" class="form-control" id="newOptionValue" placeholder="请输入新选项名称">
+                    </div>
+                    <div id="existingOptions"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="addNewOption()"><i class="fas fa-plus me-1"></i>添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

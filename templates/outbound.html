@@ -1,0 +1,761 @@
+{% extends "base.html" %}
+
+{% block title %}出库管理 - 设备库存管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-arrow-up text-danger"></i> 出库管理
+    </h1>
+    <div>
+        <button class="btn btn-outline-primary" onclick="refreshOutbound()">
+            <i class="fas fa-sync-alt"></i> 刷新
+        </button>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-minus-circle"></i> 添加出库记录
+        </h5>
+    </div>
+    <div class="card-body">
+        <form id="outboundForm">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="modelSearch" class="form-label">设备型号</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="modelSearch" placeholder="输入关键字搜索或点击下拉" autocomplete="off" required>
+                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="fas fa-caret-down"></i>
+                            </button>
+                            <div id="modelDropdown" class="dropdown-menu dropdown-menu-end" style="width: 400px; max-height: 300px; overflow-y: auto;"></div>
+                        </div>
+                        <input type="hidden" id="modelSelect" value="">
+                        <div id="modelSearchResults" class="dropdown-menu" style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="mb-3">
+                        <label for="quantityInput" class="form-label">出库数量</label>
+                        <input type="number" class="form-control" id="quantityInput" min="1" required>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="serialNumberSearch" class="form-label">序列号</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="serialNumberSearch" placeholder="输入关键字搜索" autocomplete="off">
+                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="fas fa-caret-down"></i>
+                            </button>
+                            <div id="serialDropdown" class="dropdown-menu dropdown-menu-end" style="width: 400px; max-height: 300px; overflow-y: auto;"></div>
+                        </div>
+                        <input type="hidden" id="serialNumberInput" value="">
+                        <div id="serialSearchResults" class="dropdown-menu" style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="unitCodeSearch" class="form-label">资产编号</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="unitCodeSearch" placeholder="输入关键字搜索" autocomplete="off">
+                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="fas fa-caret-down"></i>
+                            </button>
+                            <div id="unitCodeDropdown" class="dropdown-menu dropdown-menu-end" style="width: 400px; max-height: 300px; overflow-y: auto;"></div>
+                        </div>
+                        <input type="hidden" id="unitCodeInput" value="">
+                        <div id="unitCodeSearchResults" class="dropdown-menu" style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="purposeSelect" class="form-label">出库用途</label>
+                        <select class="form-select" id="purposeSelect" required>
+                            <option value="">请选择用途</option>
+                            {% for purpose in purposes %}
+                            <option value="{{ purpose.id }}">{{ purpose.purpose_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="warehouseLocationSearch" class="form-label">仓库位置</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="warehouseLocationSearch" placeholder="输入关键字搜索" autocomplete="off">
+                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="fas fa-caret-down"></i>
+                            </button>
+                            <div id="warehouseDropdown" class="dropdown-menu dropdown-menu-end" style="width: 300px; max-height: 300px; overflow-y: auto;"></div>
+                        </div>
+                        <input type="hidden" id="warehouseLocationSelect" value="">
+                        <div id="warehouseLocationSearchResults" class="dropdown-menu" style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="storeSearch" class="form-label">店号店名</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="storeSearch" placeholder="输入关键字搜索" autocomplete="off">
+                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="fas fa-caret-down"></i>
+                            </button>
+                            <div id="storeDropdown" class="dropdown-menu dropdown-menu-end" style="width: 350px; max-height: 300px; overflow-y: auto;"></div>
+                        </div>
+                        <input type="hidden" id="storeSelect" value="">
+                        <div id="storeSearchResults" class="dropdown-menu" style="width: 100%; max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="startUseDate" class="form-label">开始使用日期</label>
+                        <input type="date" class="form-control" id="startUseDate">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label for="outboundDateTime" class="form-label">出库时间</label>
+                        <input type="datetime-local" class="form-control" id="outboundDateTime" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="workOrderInput" class="form-label">工单编号 <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="workOrderInput" placeholder="必填：选店号后自动拉取或手动输入">
+                            <button type="button" class="btn btn-outline-primary" id="fetchWorkOrderBtn" title="查询工单">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="notesInput" class="form-label">备注</label>
+                        <input type="text" class="form-control" id="notesInput">
+                    </div>
+                </div>
+            </div>
+            <div class="alert alert-info" id="stockInfo" style="display: none;">
+                <i class="fas fa-info-circle"></i> 当前库存: <span id="currentStock">0</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-save"></i> 提交出库
+                </button>
+                <a href="{{ url_for('batch_outbound') }}" class="btn btn-outline-danger">
+                    <i class="fas fa-boxes"></i> 批量出库
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 工单预览弹窗 -->
+<div class="modal fade" id="workOrderModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-clipboard-list"></i> 最近工单（选择一条回填）</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="workOrderLoading" class="text-center py-4" style="display: none;">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted">正在查询工单...</p>
+                </div>
+                <div id="workOrderList"></div>
+                <div id="workOrderEmpty" class="text-center py-4" style="display: none;">
+                    <i class="fas fa-inbox text-muted" style="font-size: 2rem;"></i>
+                    <p class="mt-2 mb-2 text-muted">无工单信息</p>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="manualEntryBtn">
+                        <i class="fas fa-keyboard"></i> 手动填写工单编号
+                    </button>
+                </div>
+                <div id="workOrderError" class="alert alert-danger" style="display: none;"></div>
+                <!-- 手动纠正验证码区域 -->
+                <div id="captchaCorrection" style="display: none;">
+                    <hr>
+                    <h6 class="text-muted">验证码识别失败，请手动输入</h6>
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <img id="captchaImg" src="" alt="验证码" style="height: 40px; border: 1px solid #dee2e6; border-radius: 4px;">
+                        <input type="text" class="form-control" id="manualCaptchaInput" placeholder="输入验证码" style="width: 120px;">
+                        <button type="button" class="btn btn-primary btn-sm" id="manualLoginBtn">提交登录</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-list"></i> 出库记录列表
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>记录时间</th>
+                        <th>设备型号</th>
+                        <th>序列号</th>
+                        <th>资产编号</th>
+                        <th>出库数量</th>
+                        <th>仓库位置</th>
+                        <th>店号店名</th>
+                        <th>开始使用日期</th>
+                        <th>出库用途</th>
+                        <th>工单编号</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody id="outboundTableBody">
+                    {% for record in records %}
+                    <tr>
+                        <td>{{ record.formatted_created_at if record.formatted_created_at else '' }}</td>
+                        <td>{{ record.category_name }} - {{ record.model_name }} ({{ record.model_code }}){% if record.description %} - {{ record.description }}{% endif %}</td>
+                        <td>{{ record.serial_number or '' }}</td>
+                        <td>{{ record.unit_code or '' }}</td>
+                        <td><span class="badge bg-danger">{{ record.quantity }}</span></td>
+                        <td>{{ record.warehouse_location_name or '' }}</td>
+                        <td>{{ record.store_code or '' }}{% if record.store_code and record.store_name %} - {% endif %}{{ record.store_name or '' }}</td>
+                        <td>{{ record.start_use_date or '' }}</td>
+                        <td>{{ record.purpose_name }}</td>
+                        <td>{{ record.work_order_number or '' }}</td>
+                        <td>{{ record.notes or '' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var searchTimeout = null;
+var currentStock = 0;
+
+function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+}
+
+function getDisplayText(item, displayField) {
+    if (item.category_name) {
+        return item.category_name + ' - ' + item.model_name + ' (' + item.model_code + ')';
+    }
+    if (item.store_code) {
+        return item.store_code + ' - ' + item.store_name;
+    }
+    if (item.unit_code) {
+        return (item.serial_number || '') + ' / ' + item.unit_code;
+    }
+    return item[displayField] || '';
+}
+
+function setupSearchWithDropdown(searchInputId, searchResultsId, dropdownId, apiEndpoint, displayField, valueField, hiddenInputId) {
+    var searchInput = document.getElementById(searchInputId);
+    var searchResults = document.getElementById(searchResultsId);
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        var keyword = this.value.trim();
+        
+        if (keyword.length < 1) {
+            searchResults.style.display = 'none';
+            return;
+        }
+        
+        searchTimeout = setTimeout(function() {
+            fetch(apiEndpoint + '?keyword=' + encodeURIComponent(keyword))
+                .then(response => response.json())
+                .then(data => {
+                    var items = null;
+                    if (Array.isArray(data)) {
+                        items = data;
+                    } else if (data.success) {
+                        items = data.models || data.stores || data.locations || data.units || [];
+                    }
+                    if (items) {
+                        var html = '';
+                        
+                        items.forEach(function(item) {
+                            var displayText = getDisplayText(item, displayField);
+                            var stockInfo = item.available_quantity !== undefined ? ' - 库存: ' + (item.available_quantity || 0) : '';
+                            html += '<a class="dropdown-item" href="#" data-value="' + item[valueField] + '" data-display="' + escapeHtml(displayText) + '"';
+                            if (item.available_quantity !== undefined) {
+                                html += ' data-stock="' + (item.available_quantity || 0) + '"';
+                            }
+                            var descHtml = item.description ? '<br><small class="text-muted">' + escapeHtml(item.description) + '</small>' : '';
+                            html += '>' + displayText + stockInfo + descHtml + '</a>';
+                        });
+                        
+                        if (items.length === 0) {
+                            html = '<span class="dropdown-item text-muted">无匹配结果</span>';
+                        }
+                        
+                        searchResults.innerHTML = html;
+                        searchResults.style.display = 'block';
+                        
+                        searchResults.querySelectorAll('.dropdown-item').forEach(function(el) {
+                            el.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                searchInput.value = this.getAttribute('data-display');
+                                document.getElementById(hiddenInputId).value = this.getAttribute('data-value');
+                                searchResults.style.display = 'none';
+                                
+                                if (this.hasAttribute('data-stock')) {
+                                    currentStock = parseInt(this.getAttribute('data-stock'));
+                                    document.getElementById('currentStock').textContent = currentStock;
+                                    document.getElementById('stockInfo').style.display = 'block';
+                                    document.getElementById('quantityInput').max = currentStock;
+                                }
+                            });
+                        });
+                    }
+                });
+        }, 300);
+    });
+    
+    searchInput.addEventListener('blur', function() {
+        setTimeout(function() { searchResults.style.display = 'none'; }, 200);
+    });
+}
+
+function setupDropdownClick(dropdownId, searchInputId, hiddenInputId) {
+    var dropdown = document.getElementById(dropdownId);
+    var searchInput = document.getElementById(searchInputId);
+    
+    dropdown.addEventListener('click', function(e) {
+        if (e.target.classList.contains('dropdown-item')) {
+            e.preventDefault();
+            searchInput.value = e.target.getAttribute('data-display');
+            document.getElementById(hiddenInputId).value = e.target.getAttribute('data-value');
+            
+            if (e.target.hasAttribute('data-stock')) {
+                currentStock = parseInt(e.target.getAttribute('data-stock'));
+                document.getElementById('currentStock').textContent = currentStock;
+                document.getElementById('stockInfo').style.display = 'block';
+                document.getElementById('quantityInput').max = currentStock;
+            }
+
+            // 店号选择联动：自动查询工单
+            if (dropdownId === 'storeDropdown' && e.target.getAttribute('data-store-code')) {
+                fetchWorkOrders(e.target.getAttribute('data-store-code'));
+            }
+        }
+    });
+}
+
+function loadDropdownData() {
+    Promise.all([
+        fetch('/api/models').then(r => r.json()),
+        fetch('/api/search/units?keyword=').then(r => r.json()),
+        fetch('/api/warehouse_locations').then(r => r.json()),
+        fetch('/api/stores').then(r => r.json())
+    ])
+    .then(([modelsData, unitsData, warehouseData, storesData]) => {
+        var modelDropdown = document.getElementById('modelDropdown');
+        modelDropdown.innerHTML = '';
+        if (Array.isArray(modelsData) && modelsData.length > 0) {
+            modelsData.forEach(function(model) {
+                var item = document.createElement('a');
+                item.className = 'dropdown-item';
+                item.href = '#';
+                var displayText = model.category_name + ' - ' + model.model_name + ' (' + model.model_code + ')';
+                item.setAttribute('data-value', model.id);
+                item.setAttribute('data-display', displayText);
+                item.setAttribute('data-stock', model.available_quantity || 0);
+                var stockText = ' - 库存: ' + (model.available_quantity || 0);
+                var descHtml = model.description ? '<br><small class="text-muted">' + escapeHtml(model.description) + '</small>' : '';
+                item.innerHTML = displayText + stockText + descHtml;
+                modelDropdown.appendChild(item);
+            });
+        }
+        setupDropdownClick('modelDropdown', 'modelSearch', 'modelSelect');
+        
+        var serialDropdown = document.getElementById('serialDropdown');
+        serialDropdown.innerHTML = '';
+        if (Array.isArray(unitsData) && unitsData.length > 0) {
+            unitsData.forEach(function(unit) {
+                var item = document.createElement('a');
+                item.className = 'dropdown-item';
+                item.href = '#';
+                item.setAttribute('data-value', unit.serial_number || '');
+                item.setAttribute('data-display', (unit.serial_number || '') + ' / ' + unit.unit_code);
+                item.textContent = (unit.serial_number || '(无)') + ' - ' + unit.unit_code + ' - ' + (unit.model_name || '');
+                serialDropdown.appendChild(item);
+            });
+        }
+        setupDropdownClick('serialDropdown', 'serialNumberSearch', 'serialNumberInput');
+        
+        var unitCodeDropdown = document.getElementById('unitCodeDropdown');
+        unitCodeDropdown.innerHTML = '';
+        if (Array.isArray(unitsData) && unitsData.length > 0) {
+            unitsData.forEach(function(unit) {
+                var item = document.createElement('a');
+                item.className = 'dropdown-item';
+                item.href = '#';
+                item.setAttribute('data-value', unit.unit_code);
+                item.setAttribute('data-display', unit.unit_code);
+                item.textContent = unit.unit_code + ' - ' + (unit.serial_number || '(无)') + ' - ' + (unit.model_name || '');
+                unitCodeDropdown.appendChild(item);
+            });
+        }
+        setupDropdownClick('unitCodeDropdown', 'unitCodeSearch', 'unitCodeInput');
+        
+        var warehouseDropdown = document.getElementById('warehouseDropdown');
+        warehouseDropdown.innerHTML = '';
+        if (Array.isArray(warehouseData) && warehouseData.length > 0) {
+            warehouseData.forEach(function(loc) {
+                var item = document.createElement('a');
+                item.className = 'dropdown-item';
+                item.href = '#';
+                item.setAttribute('data-value', loc.id);
+                item.setAttribute('data-display', loc.location_name);
+                item.textContent = loc.location_name + (loc.location_code ? ' (' + loc.location_code + ')' : '');
+                warehouseDropdown.appendChild(item);
+            });
+        }
+        setupDropdownClick('warehouseDropdown', 'warehouseLocationSearch', 'warehouseLocationSelect');
+        
+        var storeDropdown = document.getElementById('storeDropdown');
+        storeDropdown.innerHTML = '';
+        if (Array.isArray(storesData) && storesData.length > 0) {
+            storesData.forEach(function(store) {
+                var item = document.createElement('a');
+                item.className = 'dropdown-item';
+                item.href = '#';
+                item.setAttribute('data-value', store.id);
+                item.setAttribute('data-display', store.store_code + ' - ' + store.store_name);
+                item.setAttribute('data-store-code', store.store_code);
+                item.textContent = store.store_code + ' - ' + store.store_name + (store.contact_person ? ' - ' + store.contact_person : '');
+                storeDropdown.appendChild(item);
+            });
+        }
+        setupDropdownClick('storeDropdown', 'storeSearch', 'storeSelect');
+    });
+}
+
+// ==================== ITS 工单查询 ====================
+
+var currentCaptchaCheckKey = '';
+// 标记工单编号是否由查询结果自动回填（手动输入时置为 false，空结果查询不会清空手动内容）
+var workOrderAutoFilled = false;
+
+function fetchWorkOrders(storeCode) {
+    var modal = new bootstrap.Modal(document.getElementById('workOrderModal'));
+    document.getElementById('workOrderLoading').style.display = 'block';
+    document.getElementById('workOrderList').innerHTML = '';
+    document.getElementById('workOrderError').style.display = 'none';
+    document.getElementById('workOrderEmpty').style.display = 'none';
+    document.getElementById('captchaCorrection').style.display = 'none';
+    modal.show();
+
+    fetch('/api/its/workorders/' + encodeURIComponent(storeCode))
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('workOrderLoading').style.display = 'none';
+            if (data.success && data.workorders && data.workorders.length > 0) {
+                document.getElementById('workOrderEmpty').style.display = 'none';
+                renderWorkOrders(data.workorders);
+            } else if (data.need_manual) {
+                // OCR 失败，加载验证码让用户手动输入；同时展示后端返回的具体原因
+                loadCaptchaForManual(data.message || '验证码自动识别失败，请输入下方验证码后点击提交登录');
+            } else if (data.success) {
+                // 查询成功但结果为空：不保留上一次的历史数据，显示"无工单信息"
+                showEmptyWorkOrders();
+            } else {
+                document.getElementById('workOrderError').textContent = data.message || '未查询到工单';
+                document.getElementById('workOrderError').style.display = 'block';
+            }
+        })
+        .catch(err => {
+            document.getElementById('workOrderLoading').style.display = 'none';
+            document.getElementById('workOrderError').textContent = '查询失败: ' + err;
+            document.getElementById('workOrderError').style.display = 'block';
+        });
+}
+
+function renderWorkOrders(workorders) {
+    var listEl = document.getElementById('workOrderList');
+    listEl.innerHTML = '';
+    document.getElementById('workOrderEmpty').style.display = 'none';
+    workorders.forEach(function(wo) {
+        var card = document.createElement('div');
+        card.className = 'card mb-2 cursor-pointer';
+        card.style.cursor = 'pointer';
+        card.style.transition = 'box-shadow 0.2s';
+        card.addEventListener('mouseenter', function() { this.style.boxShadow = '0 0 0 2px #0d6efd'; });
+        card.addEventListener('mouseleave', function() { this.style.boxShadow = ''; });
+        card.addEventListener('click', function() {
+            selectWorkOrder(wo.work_order_number);
+        });
+        card.innerHTML = `
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1"><i class="fas fa-file-alt text-primary"></i> ${escapeHtml(wo.work_order_number || '无编号')}</h6>
+                        <p class="mb-1 text-muted small"><i class="fas fa-store"></i> ${escapeHtml(wo.store_name || '')}</p>
+                        <p class="mb-0 text-muted small"><i class="fas fa-clock"></i> ${escapeHtml(wo.create_time || '')}</p>
+                    </div>
+                </div>
+                <p class="mt-2 mb-0 small">${escapeHtml(wo.description || '无问题描述')}</p>
+            </div>
+        `;
+        listEl.appendChild(card);
+    });
+}
+
+function showEmptyWorkOrders() {
+    // 清空弹窗内所有上一次查询的历史数据
+    document.getElementById('workOrderList').innerHTML = '';
+    document.getElementById('workOrderError').style.display = 'none';
+    document.getElementById('captchaCorrection').style.display = 'none';
+    document.getElementById('workOrderEmpty').style.display = 'block';
+    // 仅清空由查询结果自动回填的工单编号；用户手动输入的内容保留，避免与手动模式冲突
+    if (workOrderAutoFilled) {
+        document.getElementById('workOrderInput').value = '';
+        workOrderAutoFilled = false;
+    }
+}
+
+function selectWorkOrder(workOrderNumber) {
+    document.getElementById('workOrderInput').value = workOrderNumber || '';
+    workOrderAutoFilled = true;
+    var modalEl = document.getElementById('workOrderModal');
+    var modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) { modal.hide(); }
+    if (workOrderNumber) {
+        showAlert('已选择工单: ' + workOrderNumber, 'success');
+    }
+}
+
+function loadCaptchaForManual(errorMsg) {
+    var message = errorMsg || '验证码自动识别失败，请输入下方验证码后点击提交登录';
+    fetch('/api/its/captcha')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('captchaImg').src = data.image;
+                currentCaptchaCheckKey = data.check_key;
+                document.getElementById('captchaCorrection').style.display = 'block';
+                document.getElementById('workOrderError').textContent = message;
+                document.getElementById('workOrderError').style.display = 'block';
+            } else {
+                document.getElementById('workOrderError').textContent = data.message || '获取验证码失败';
+                document.getElementById('workOrderError').style.display = 'block';
+            }
+        })
+        .catch(err => {
+            document.getElementById('workOrderError').textContent = '获取验证码失败: ' + err;
+            document.getElementById('workOrderError').style.display = 'block';
+        });
+}
+
+// 手动登录按钮
+document.getElementById('manualLoginBtn').addEventListener('click', function() {
+    var captcha = document.getElementById('manualCaptchaInput').value.trim();
+    if (!captcha) { showAlert('请输入验证码', 'warning'); return; }
+
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    fetch('/api/its/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ check_key: currentCaptchaCheckKey, captcha: captcha })
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('manualLoginBtn').disabled = false;
+        document.getElementById('manualLoginBtn').innerHTML = '提交登录';
+        if (data.success) {
+            // 登录成功，重新查询工单
+            var storeCode = document.getElementById('storeSearch').value.split(' - ')[0];
+            if (storeCode) {
+                document.getElementById('captchaCorrection').style.display = 'none';
+                document.getElementById('workOrderError').style.display = 'none';
+                fetchWorkOrders(storeCode);
+            }
+        } else {
+            // 登录失败，刷新验证码
+            showAlert(data.message || '登录失败', 'danger');
+            loadCaptchaForManual();
+            document.getElementById('manualCaptchaInput').value = '';
+        }
+    })
+    .catch(err => {
+        document.getElementById('manualLoginBtn').disabled = false;
+        document.getElementById('manualLoginBtn').innerHTML = '提交登录';
+        showAlert('登录异常: ' + err, 'danger');
+    });
+});
+
+// 搜索按钮：从当前选中的店号查询工单
+document.getElementById('fetchWorkOrderBtn').addEventListener('click', function() {
+    var storeSearch = document.getElementById('storeSearch').value.trim();
+    if (!storeSearch) {
+        showAlert('请先选择店号店名', 'warning');
+        return;
+    }
+    var storeCode = storeSearch.split(' - ')[0];
+    if (storeCode) {
+        fetchWorkOrders(storeCode);
+    }
+});
+
+// 手动输入工单编号：切换为手动模式，后续空结果查询不会清空手动内容
+document.getElementById('workOrderInput').addEventListener('input', function() {
+    workOrderAutoFilled = false;
+});
+
+// 空结果时的手动填写入口：关闭弹窗并聚焦工单编号输入框
+document.getElementById('manualEntryBtn').addEventListener('click', function() {
+    var modalEl = document.getElementById('workOrderModal');
+    var modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) { modal.hide(); }
+    document.getElementById('workOrderInput').focus();
+    showAlert('请手动输入工单编号（必填）', 'info');
+});
+
+// ==================== ITS 工单查询结束 ====================
+
+function refreshOutbound() {
+    fetch('/api/outbound')
+        .then(response => response.json())
+        .then(records => {
+            if (Array.isArray(records)) {
+                const tbody = document.getElementById('outboundTableBody');
+                tbody.innerHTML = '';
+                
+                records.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${record.formatted_created_at || ''}</td>
+                        <td>${record.category_name} - ${record.model_name} (${record.model_code})${record.description ? ' - ' + record.description : ''}</td>
+                        <td>${record.serial_number || ''}</td>
+                        <td>${record.unit_code || ''}</td>
+                        <td><span class="badge bg-danger">${record.quantity}</span></td>
+                        <td>${record.warehouse_location_name || ''}</td>
+                        <td>${record.store_code || ''}${record.store_code && record.store_name ? ' - ' : ''}${record.store_name || ''}</td>
+                        <td>${record.start_use_date || ''}</td>
+                        <td>${record.purpose_name}</td>
+                        <td>${record.work_order_number || ''}</td>
+                        <td>${record.notes || ''}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+            showAlert('数据已刷新', 'success');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('刷新失败', 'danger');
+        });
+}
+
+document.getElementById('outboundForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    var modelId = document.getElementById('modelSelect').value;
+    if (!modelId) {
+        showAlert('请选择设备型号', 'warning');
+        return;
+    }
+    
+    var quantity = parseInt(document.getElementById('quantityInput').value);
+    if (currentStock > 0 && quantity > currentStock) {
+        showAlert('出库数量不能超过当前库存 (' + currentStock + ')', 'warning');
+        return;
+    }
+
+    // 工单编号必填校验
+    var workOrderNumber = document.getElementById('workOrderInput').value.trim();
+    if (!workOrderNumber) {
+        showAlert('工单编号为必填项，请选择或手动输入工单编号', 'warning');
+        document.getElementById('workOrderInput').focus();
+        return;
+    }
+
+    var serialNumber = document.getElementById('serialNumberInput').value.trim();
+    var unitCode = document.getElementById('unitCodeInput').value.trim();
+    
+    if (!serialNumber) {
+        serialNumber = document.getElementById('serialNumberSearch').value.trim();
+    }
+    if (!unitCode) {
+        unitCode = document.getElementById('unitCodeSearch').value.trim();
+    }
+    
+    const formData = {
+        model_id: parseInt(modelId),
+        quantity: quantity,
+        serial_number: serialNumber,
+        unit_code: unitCode,
+        purpose_id: document.getElementById('purposeSelect').value,
+        warehouse_location_id: document.getElementById('warehouseLocationSelect').value ? parseInt(document.getElementById('warehouseLocationSelect').value) : null,
+        store_id: document.getElementById('storeSelect').value ? parseInt(document.getElementById('storeSelect').value) : null,
+        start_use_date: document.getElementById('startUseDate').value || null,
+        outbound_date: document.getElementById('outboundDateTime').value,
+        notes: document.getElementById('notesInput').value,
+        work_order_number: workOrderNumber
+    };
+    
+    fetch('/api/outbound', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('出库记录添加成功', 'success');
+            document.getElementById('outboundForm').reset();
+            document.getElementById('modelSelect').value = '';
+            document.getElementById('serialNumberInput').value = '';
+            document.getElementById('unitCodeInput').value = '';
+            document.getElementById('warehouseLocationSelect').value = '';
+            document.getElementById('storeSelect').value = '';
+            document.getElementById('stockInfo').style.display = 'none';
+            workOrderAutoFilled = false;
+            currentStock = 0;
+            loadDropdownData();
+            refreshOutbound();
+        } else {
+            showAlert('出库失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('出库失败', 'danger');
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    document.getElementById('outboundDateTime').value = now.toISOString().slice(0, 16);
+    
+    setupSearchWithDropdown('modelSearch', 'modelSearchResults', 'modelDropdown', '/api/search/models', 'model_name', 'id', 'modelSelect');
+    setupSearchWithDropdown('serialNumberSearch', 'serialSearchResults', 'serialDropdown', '/api/search/units', 'serial_number', 'serial_number', 'serialNumberInput');
+    setupSearchWithDropdown('unitCodeSearch', 'unitCodeSearchResults', 'unitCodeDropdown', '/api/search/units', 'unit_code', 'unit_code', 'unitCodeInput');
+    setupSearchWithDropdown('warehouseLocationSearch', 'warehouseLocationSearchResults', 'warehouseDropdown', '/api/search/warehouse_locations', 'location_name', 'id', 'warehouseLocationSelect');
+    setupSearchWithDropdown('storeSearch', 'storeSearchResults', 'storeDropdown', '/api/search/stores', 'store_name', 'id', 'storeSelect');
+    
+    loadDropdownData();
+    refreshOutbound();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,46 @@
+[Unit]
+Description=effic Flask app (Gunicorn)
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/effic
+# Keep system directories in PATH: this line REPLACES the inherited PATH,
+# so dropping /usr/bin makes shutil.which('tesseract') return None and the
+# ITS captcha OCR reports "Tesseract not installed".
+Environment="PATH=/opt/effic/venv/bin:/usr/local/bin:/usr/bin:/bin"
+EnvironmentFile=/opt/effic/.env
+ExecStart=/opt/effic/venv/bin/gunicorn \
+    --workers 4 \
+    --threads 2 \
+    --worker-class gthread \
+    --bind 127.0.0.1:5050 \
+    --timeout 120 \
+    --graceful-timeout 30 \
+    --max-requests 1000 \
+    --max-requests-jitter 100 \
+    --access-logfile /opt/effic/logs/gunicorn_access.log \
+    --error-logfile /opt/effic/logs/gunicorn_error.log \
+    --capture-output \
+    app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=5
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# Writable paths required by the app:
+#   /opt/effic/kdd             -> express.db, express.db.backup, -journal/-wal, uploads/, exports/
+#   /opt/effic/logs            -> rotating app log
+#   /opt/effic/static/uploads  -> user uploads
+#   /opt/effic/__pycache__     -> Python bytecode cache
+# Leading "-" means: ignore this path if it does not exist.
+ReadWritePaths=-/opt/effic/kdd -/opt/effic/logs -/opt/effic/static/uploads -/opt/effic/__pycache__
+
+[Install]
+WantedBy=multi-user.target
